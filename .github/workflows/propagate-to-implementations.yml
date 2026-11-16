@@ -1,0 +1,64 @@
+name: Propagate to implementations
+
+# Whenever master changes (a product sync, a shared fix, a CI change), open a
+# PR from master into every implementation branch (impl/<name>), so each team
+# takes shared changes in when it is ready, and resolves its own conflicts.
+#
+# One open PR per branch: later master changes simply show up in it. Merge it
+# with "Create a merge commit", not squash or rebase, so the next PR only shows
+# what is new (docs/GUIDE.md §4).
+#
+# Needs: Settings → Actions → General → "Allow GitHub Actions to create and
+# approve pull requests" (docs/GUIDE.md §2, step 4).
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: propagate-to-implementations
+  cancel-in-progress: false
+
+jobs:
+  propagate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Open a PR into each impl/* branch that is behind master
+        run: |
+          mapfile -t branches < <(gh api "repos/$GH_REPO/branches" --paginate --jq '.[].name | select(startswith("impl/"))')
+          if (( ${#branches[@]} == 0 )); then
+            echo "No impl/* branches yet: nothing to propagate." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for b in "${branches[@]}"; do
+            existing="$(gh pr list --base "$b" --head master --state open --json url --jq '.[0].url')"
+            if [[ -n "$existing" ]]; then
+              echo "- \`$b\`: PR already open, now includes the latest master: $existing" | tee -a "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            body="Brings the latest \`master\` (shared suite, product syncs, CI changes) into \`$b\`.
+
+          **Review** the Files tab; resolve conflicts in favour of what this implementation needs.
+
+          **Merge with \"Create a merge commit\"** (not squash or rebase), so the next PR only shows what is new.
+
+          Opened automatically by the *Propagate to implementations* workflow."
+            if out="$(gh pr create --base "$b" --head master --title "Bring master into $b" --body "$body" 2>&1)"; then
+              echo "- \`$b\`: opened $out" | tee -a "$GITHUB_STEP_SUMMARY"
+            elif grep -qi "no commits between" <<<"$out"; then
+              echo "- \`$b\`: already up to date with master" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error title=$b::$out"
+              failed=1
+            fi
+          done
+          exit "${failed:-0}"

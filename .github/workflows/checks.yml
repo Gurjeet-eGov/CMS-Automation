@@ -1,0 +1,44 @@
+name: Checks
+
+# Quick, offline checks on every pull request into master or an impl/* branch.
+# Nothing here touches a deployment, and no secrets are used:
+#   - the CI scripts' own unit tests (ci/tests/)
+#   - every spec loads: `playwright test --list` imports all of them, so a
+#     broken import or a TypeScript syntax error fails here, in the PR, instead
+#     of aborting a real run later
+
+on:
+  pull_request:
+    branches: [master, 'impl/**']
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04 # see integration-tests.yml for why not ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/integration-tests/package-lock.json
+
+      - name: Prepare the suite
+        run: ci/prepare-suite.sh --source this-branch
+
+      - name: Install dependencies
+        working-directory: .work/suite
+        run: npm ci --no-audit --no-fund
+
+      - name: CI script tests
+        run: node --test ci/tests/*.test.mjs
+
+      - name: Every spec loads
+        working-directory: .work/suite
+        run: npx playwright test --config playwright.ci.config.ts --list | tail -1

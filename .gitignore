@@ -1,0 +1,9 @@
+# Scratch space for CI and local runs: the prepared suite, product checkouts, results.
+.work/
+
+# Local secrets for ci/run-local.sh — never commit. (In GitHub they are the
+# SECRETS_<ENVIRONMENT> repository secrets; see docs/GUIDE.md.)
+environments/*/secrets.env
+
+node_modules/
+.DS_Store
