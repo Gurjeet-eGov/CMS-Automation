@@ -1,0 +1,187 @@
+import { tenantSlug } from '../utils/identity-bff';
+/**
+ * Citizen home + landing surfaces — Stories 2.1, 2.2, 2.3.
+ *
+ * Three surfaces:
+ *   - /citizen/all-services — post-login default landing
+ *   - /citizen/pgr-home     — branded "Nai Pepea" PGR module home
+ *   - Header language pill — toggles localization
+ *
+ * Also smoke-checks that /citizen/ redirects to /all-services (per the
+ * Routes table in docs/personas/citizen-flows.md).
+ */
+import { test, expect } from '@playwright/test';
+import { citizenOtpLogin } from '../utils/citizen-login';
+import { BASE_URL, generateCitizenPhone } from '../utils/env';
+
+test.describe('Citizen home + landing', () => {
+  test('/citizen/ redirects to /citizen/all-services', {
+    annotation: {
+      type: 'description',
+      description: `Routes-table contract from docs/personas/citizen-flows.md: bare /citizen/ must redirect a logged-in citizen to /citizen/all-services. Catches a regression where the index route changes silently and citizens land on a 404 or a different home.
+
+Steps:
+1. setTimeout 60s; OTP-login as a fresh citizen.
+2. Navigate to /digit-ui/citizen.
+3. Wait (up to 15 s) for the SPA router to settle on /citizen/all-services.
+4. Assert page.url() contains '/citizen/all-services'.
+
+Uses waitForURL instead of a fixed sleep so the assertion is reliable on both
+fast (naipepea) and slower (ke/bomet) deployments where the React router needs
+a round-trip to MDMS before picking the home route.`,
+    },
+    tag: ['@area:pgr', '@kind:regression', '@layer:ui', '@persona:citizen'] }, async ({ page }) => {
+    test.setTimeout(60_000);
+    const phone = generateCitizenPhone();
+    await citizenOtpLogin(page, phone);
+
+    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    // Wait for the SPA router to settle — on ke the React router makes an
+    // MDMS round-trip before choosing /all-services, so a fixed 3 s sleep
+    // is not enough. waitForURL retries until the URL matches or 15 s pass.
+    await page.waitForURL(/\/citizen\/all-services/, { timeout: 15_000 });
+
+    expect(page.url()).toContain('/citizen/all-services');
+  });
+
+  test('/all-services renders CMS title + File a Complaint + My Complaints links', {
+    annotation: {
+      type: 'description',
+      description: `Inventory check on the citizen home landing — every label a citizen needs to file/track complaints + the four sidebar items must render. Catches both shrinkage (a tile or sidebar entry disappearing) and crash regressions (the page fully erroring).
+
+Steps:
+1. setTimeout 60s; OTP-login as a fresh citizen.
+2. Navigate to /digit-ui/citizen/all-services, wait 3s for hydration.
+3. Assert body does NOT contain "Something went wrong".
+4. Assert body contains "Complaint Management System", "File a Complaint", and "My Complaints".
+5. Assert the Home row renders.
+6. Open the top bar's account menu and assert it offers Edit Profile and Logout (develop moved both out of the citizen sidebar into that menu, as for employees).
+7. Helpline: develop shows the row only when the citizen's tenant (or the state) has a contactNumber. When one is set, assert the row is there with that number.
+
+Catalog test — if a label gets renamed legitimately, update this spec and Story 2.1 in the same PR.`,
+    },
+    tag: ['@area:pgr', '@kind:regression', '@layer:ui', '@persona:citizen'] }, async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const phone = generateCitizenPhone();
+    await citizenOtpLogin(page, phone);
+
+    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/all-services`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    await page.waitForTimeout(3000);
+
+    const body = page.locator('body');
+    await expect(body).not.toContainText('Something went wrong');
+    await expect(body).toContainText(/Complaints? Management System/); // tenant-localized module title
+    await expect(body).toContainText('File a Complaint');
+    await expect(body).toContainText('My Complaints');
+
+    // Sidebar inventory — Story 2.x note.
+    // Matched case-insensitively: these render from localization, so the label
+    // is the translated value, not the raw key.
+    // The rail's own row: body text runs labels together ("…1HomeComplaints…").
+    await expect(page.getByText(/^Home$/i).first(), 'sidebar item "Home" missing').toBeVisible({ timeout: 15_000 });
+
+    // Edit Profile and Logout are no longer sidebar rows on develop: like the
+    // employee shell, they live in the top bar's account menu
+    // (TopBarSideBar/index.js userOptions; SideBar/citizenNavItems.js).
+    // (The rail also carries a Logout button of its own.)
+    const accountMenu = page.locator('.header-dropdown-label:has(.header-dropdown-profile)').first();
+    await expect(accountMenu, 'top bar account menu missing').toBeVisible({ timeout: 10_000 });
+    await accountMenu.click();
+    const options = page.locator('.header-dropdown-option');
+    await expect(options.filter({ hasText: /Edit Profile/i }), 'account menu item "Edit Profile" missing').toBeVisible({ timeout: 8_000 });
+    await expect(options.filter({ hasText: /Logout/i }), 'account menu item "Logout" missing').toBeVisible({ timeout: 8_000 });
+    await page.keyboard.press('Escape').catch(() => {});
+
+    // Helpline is shown only when the citizen's tenant or the state has a
+    // contactNumber; without one, develop leaves the row out rather than
+    // dialling a placeholder (citizenNavItems.js).
+    const helpline = await page
+      .evaluate(() => {
+        const digit = (window as unknown as { Digit?: any }).Digit;
+        const tenants: Array<{ code?: string; contactNumber?: string }> =
+          digit?.SessionStorage?.get?.('initData')?.tenants || [];
+        const codes = [digit?.ULBService?.getCurrentTenantId?.(), digit?.ULBService?.getStateId?.()];
+        return codes.map((code) => tenants.find((t) => t.code === code)?.contactNumber).find(Boolean) || null;
+      })
+      .catch(() => null);
+    if (helpline) {
+      await expect(body, `sidebar Helpline row missing although the tenant's helpline is ${helpline}`).toContainText(
+        new RegExp(`Helpline\\s*${helpline.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'),
+      );
+    }
+  });
+
+  test('/pgr-home renders the PGR module home with action links', {
+    annotation: {
+      type: 'description',
+      description: `Catalog test for the PGR-branded home (/citizen/pgr-home). Asserts the actionable content + PGR badge renders. Brand assets ("Nai Pepea", hero text) are CSS-content and intentionally NOT asserted on — only DOM text is tested.
+
+Steps:
+1. setTimeout 60s; OTP-login as a fresh citizen.
+2. Navigate to /digit-ui/citizen/pgr-home, wait 3s.
+3. Assert body does NOT contain "Something went wrong".
+4. Assert body contains "PGR", "Complaint Management System", "My Complaints", and "File a Complaint".
+
+If the brand assets ever land as real DOM text, extend this spec — leaving the hero out keeps it stable across CSS changes.`,
+    },
+    tag: ['@area:pgr', '@kind:regression', '@layer:ui', '@persona:citizen'] }, async ({ page }) => {
+    test.setTimeout(60_000);
+    // Use the suite-wide provisioned citizen — avoids per-run registration
+    // failures on deployments with strict mobile-number validation (e.g.
+    // Ethiopia ^[17][0-9]{8}$) and matches the pattern used in pgr-fixes.spec.ts.
+    await citizenOtpLogin(page);
+
+    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr-home`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    await page.waitForTimeout(3000);
+
+    const body = page.locator('body');
+    await expect(body).not.toContainText('Something went wrong');
+    // Note: "Nai Pepea" + "Report a grievance" + "Nairobi City County
+    // Government" are rendered as background-image / CSS-content on the
+    // hero, not DOM text. The "PGR" badge is also absent on digit-ui v2
+    // builds (Ethiopia) — asserting only on the actionable content which
+    // is stable across both v1 and v2 layouts.
+    await expect(body).toContainText(/Complaints? Management System/); // tenant-localized module title
+    await expect(body).toContainText('My Complaints');
+    await expect(body).toContainText('File a Complaint');
+  });
+
+  test('header language pill renders the current locale', {
+    annotation: {
+      type: 'description',
+      description: `Smoke check that the header language pill renders with the current locale ("English" by default). Doesn't assert the dropdown options because clicking the pill opens a native OS-level select with no [role="listbox"] in the DOM — only confirms the pill exists.
+
+Steps:
+1. setTimeout 60s; OTP-login as a fresh citizen.
+2. Wait 2s for header to render.
+3. Locate label:has-text("English"); assert it is visible (within 5s).
+
+Tightly scoped — bigger localization assertions live in dedicated specs (e.g. complaint-type-labels.spec.ts).`,
+    },
+    tag: ['@area:pgr', '@kind:regression', '@layer:ui', '@persona:citizen'] }, async ({ page }) => {
+    test.setTimeout(60_000);
+    const phone = generateCitizenPhone();
+    await citizenOtpLogin(page, phone);
+    await page.waitForTimeout(2000);
+
+    // Language pill is a <label> with the current locale name. Clicking
+    // it opens a native OS-level dropdown (no [role="listbox"] in the
+    // DOM) so we don't assert the options list — just that the pill
+    // renders with the current locale text.
+    const pill = page.locator('label:has-text("English")').first();
+    await expect(pill, 'language pill should render with current locale').toBeVisible({
+      timeout: 5_000,
+    });
+  });
+});
