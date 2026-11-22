@@ -13,7 +13,8 @@
 #   full           everything (the only scope that feeds the dashboard history)
 #
 # Reads (all optional): ENV_SECRETS, INPUT_BASE_URL, INPUT_TENANT_SLUG,
-# INPUT_DIGIT_TENANT (see ci/load-env.sh); GREP; RECORD_VIDEO, RECORD_TRACES;
+# INPUT_DIGIT_TENANT (see ci/load-env.sh); GREP; RECORD_SCREENSHOTS,
+# RECORD_VIDEO, RECORD_TRACES;
 # PW_GLOBAL_TIMEOUT_MS (default 5400000 = 90 min).
 #
 # Test failures are NOT an error here: the run's verdict is decided later, by
@@ -23,7 +24,7 @@
 #   run-meta.json            what ran, where, and anything that stopped it
 #   report.json              Playwright's JSON report (if it got that far)
 #   playwright-report/       the HTML report
-#   test-results/            screenshots (+ video / traces when switched on)
+#   test-results/            failure context (+ screenshots / video / traces when switched on)
 #   deployment-profile.json  what profile-setup discovered (no secrets in it)
 # Token files (auth*.json, citizen-fixture.json) are never copied out.
 set -uo pipefail
@@ -112,7 +113,7 @@ if [[ -z "$PROBLEMS" && "$PRE_OK" == true ]]; then
   [[ -n "$GREP" ]] && CMD+=(--grep "$GREP")
   CMD+=(${EXTRA[@]+"${EXTRA[@]}"})
   echo "[run] ${CMD[*]}"
-  echo "[run] recording: video=${RECORD_VIDEO:-off} traces=${RECORD_TRACES:-off} (screenshots of failures always)"
+  echo "[run] recording: screenshots=${RECORD_SCREENSHOTS:-off} video=${RECORD_VIDEO:-off} traces=${RECORD_TRACES:-off}"
   "${CMD[@]}"
   PW_EXIT=$?
   echo "[run] playwright exited $PW_EXIT (test failures are judged by the report step)"
@@ -129,7 +130,7 @@ RUN_ID="$RUN_ID" ENVIRONMENT="$ENVIRONMENT" SCOPE="$SCOPE" PARTIAL="$PARTIAL" GR
 STARTED="$STARTED" FINISHED="$FINISHED" PW_EXIT="$PW_EXIT" PROBLEMS="$PROBLEMS" \
 PRE_OK="$PRE_OK" PRE_CODE="$PRE_CODE" PRE_ERR="$PRE_ERR" SECRET_KEYS="$SECRET_KEYS" \
 M_BASE_URL="${BASE_URL:-}" M_TENANT="${DIGIT_TENANT:-}" M_SLUG="${IDENTITY_TEST_TENANT_SLUG:-}" \
-M_VIDEO="${RECORD_VIDEO:-}" M_TRACES="${RECORD_TRACES:-}" \
+M_SCREENSHOTS="${RECORD_SCREENSHOTS:-}" M_VIDEO="${RECORD_VIDEO:-}" M_TRACES="${RECORD_TRACES:-}" \
 node -e '
   const fs = require("fs");
   const e = process.env;
@@ -146,7 +147,7 @@ node -e '
     dashboardKey: `${sourceKey}/${e.ENVIRONMENT}`,
     source,
     target: { baseUrl: e.M_BASE_URL || null, tenant: e.M_TENANT || null, workspaceSlug: e.M_SLUG || null },
-    recording: { video: on(e.M_VIDEO), traces: on(e.M_TRACES) },
+    recording: { screenshots: on(e.M_SCREENSHOTS), video: on(e.M_VIDEO), traces: on(e.M_TRACES) },
     startedAt: e.STARTED,
     finishedAt: e.FINISHED,
     configProblems: (e.PROBLEMS || "").split("\n").filter(Boolean),

@@ -15,7 +15,7 @@ const meta = (over = {}) => ({
   dashboardKey: 'master/naipepea',
   source: { kind: 'this-branch', branch: 'master', sha: 'aaaaaaaa1111', repo: 'me/CMS-Automation', ref: 'master' },
   target: { baseUrl: 'https://naipepea.digit.org', tenant: 'qa', workspaceSlug: 'qa2398' },
-  recording: { video: false, traces: false },
+  recording: { screenshots: false, video: false, traces: false },
   startedAt: '2026-11-17T10:00:00Z', finishedAt: '2026-11-17T10:42:00Z',
   configProblems: [], preflight: { ok: true, httpCode: '200', error: null }, playwrightExit: 1, secretKeys: ['ADMIN_PASSWORD'],
   ...over,
@@ -189,4 +189,14 @@ test('Slack payload stays inside Block Kit limits and escapes markup', () => {
   const body = JSON.stringify(p);
   assert.ok(!body.includes('<b>'));
   assert.match(body, /and 52 more/);
+});
+
+test('run summary says which recordings were on: all off by default', () => {
+  const r = report([['a.spec.ts', 1, 'x', 'passed']]);
+  const row = md => md.split('\n').find(line => line.startsWith('| Recording |'));
+  const none = { run: '', dashboard: '', report: '', artifact: '' };
+  const off = renderMarkdown(evaluate({ meta: meta({ scope: 'smoke', partial: true }), report: r }), none);
+  assert.equal(row(off), '| Recording | screenshots off · video off · traces off |');
+  const shots = renderMarkdown(evaluate({ meta: meta({ scope: 'smoke', partial: true, recording: { screenshots: true, video: false, traces: false } }), report: r }), none);
+  assert.equal(row(shots), '| Recording | screenshots on (failures) · video off · traces off |');
 });

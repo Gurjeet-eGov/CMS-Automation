@@ -208,7 +208,8 @@ export function renderMarkdown(result, l) {
     if (counts.total) {
       out.push(`| Result | ${counts.passed} passed · ${counts.failed + counts.timedOut} failed · ${counts.skipped} skipped${counts.notRun ? ` · ${counts.notRun} did not run` : ''}${counts.interrupted ? ` · ${counts.interrupted} interrupted` : ''}${counts.flaky ? ` · ${counts.flaky} flaky` : ''} — ${counts.total} total |`);
     }
-    out.push(`| Recording | screenshots of failures · video ${meta.recording?.video ? 'on (failures)' : 'off'} · traces ${meta.recording?.traces ? 'on (failures)' : 'off'} |`);
+    const rec = on => (on ? 'on (failures)' : 'off');
+    out.push(`| Recording | screenshots ${rec(meta.recording?.screenshots)} · video ${rec(meta.recording?.video)} · traces ${rec(meta.recording?.traces)} |`);
     if (meta.secretKeys) out.push(`| Secrets used | ${meta.secretKeys.length ? meta.secretKeys.map(k => `\`${k}\``).join(' ') : 'none'} |`);
     out.push('');
   }
@@ -247,7 +248,7 @@ export function renderMarkdown(result, l) {
   const linkLines = [];
   if (l.dashboard) linkLines.push(`- Dashboard: ${l.dashboard}${meta?.partial ? ' (full runs only)' : ''}`);
   if (l.report) linkLines.push(`- This run's Playwright report: ${l.report}`);
-  if (l.artifact) linkLines.push(`- Download this run's results (report, screenshots): ${l.artifact} — open with \`npx playwright show-report playwright-report\``);
+  if (l.artifact) linkLines.push(`- Download this run's results (HTML report and report.json): ${l.artifact} — open with \`npx playwright show-report playwright-report\``);
   if (linkLines.length) out.push('### Links', '', ...linkLines, '');
   if (l.dashboard && comparison?.state === 'baseline') {
     out.push('> First published run for this dashboard. If the dashboard link shows a 404, switch GitHub Pages on (docs/GUIDE.md §2, step 6).', '');

@@ -34,7 +34,7 @@ This repo holds the CMS/PGR Playwright integration suite and runs it on GitHub A
 | **Step** | One command (`run:`) or one ready-made action (`uses:`). | `ci/*.sh` scripts called from steps |
 | **Secret** | An encrypted value you store once in the repo settings. Workflows can read it; nobody can read it back, and logs show `***` instead. | `SECRETS_NAIPEPEA`, `SLACK_WEBHOOK_URL`, … (§2) |
 | **Variable** | A plain, non-secret setting stored in the repo settings: a switch. | `RECORD_VIDEO`, `REPORTS_KEPT`, … (§8) |
-| **Artifact** | Files a run keeps for download. Here: the HTML report and screenshots, kept 14 days. | "Artifacts" box at the bottom of a run page |
+| **Artifact** | Files a run keeps for download. Here: the HTML report and `report.json`, kept 14 days. | "Artifacts" box at the bottom of a run page |
 | **GitHub Pages** | A free static website served from a branch of this repo. | the `gh-pages` branch → your dashboard |
 
 What happens when you press **Run workflow** on *Integration tests*:
@@ -150,7 +150,7 @@ A minute later the site is live at:
 Two things to know about this site:
 
 - **It is public.** Anyone with the link can open it, because on GitHub's free plan Pages only works for public repos.
-- **Traces are off.** That's why they are disabled by default (§8).
+- **It is text only.** Screenshots, video and traces are all off by default, so no images or recordings are published. Switch one on only while debugging (§8).
 
 ### Step 7 — email when a run goes red
 
@@ -168,6 +168,7 @@ Set these under **Settings** → **Secrets and variables** → **Actions** → *
 
 | Variable | Default | What it does |
 |---|---|---|
+| `RECORD_SCREENSHOTS` | off | `true` → keep a screenshot of each **failing** test |
 | `RECORD_VIDEO` | off | `true` → keep a video of each **failing** test |
 | `RECORD_TRACES` | off | `true` → keep a Playwright trace of each failing test. **Read §8 first.** |
 | `REPORTS_KEPT` | `5` | How many runs per dashboard keep their full report. Older runs keep their results only. |
@@ -467,7 +468,7 @@ It keeps 30 full runs. The newest `REPORTS_KEPT` (5) of them keep their full rep
 
 ### The downloadable results (artifact)
 
-At the bottom of the run page, **Artifacts** → `results-<environment>`. This is a zip of the HTML report, screenshots and `report.json`, kept 14 days. To open it:
+At the bottom of the run page, **Artifacts** → `results-<environment>`. This is a zip of the HTML report and `report.json` (plus screenshots, video or traces of failing tests if you switched them on), kept 14 days. To open it:
 
 1. Unzip it.
 2. Run:
@@ -502,9 +503,11 @@ Known reds raise **no alert** run after run. Only a *change* does (§8).
 
 | Variable | Off | On (`true`) |
 |---|---|---|
-| — | Failing tests always keep a **screenshot** (small, holds no secrets). | — |
+| `RECORD_SCREENSHOTS` | no screenshot | a **screenshot** of each failing test |
 | `RECORD_VIDEO` | no video | a **video** of each failing test |
 | `RECORD_TRACES` | no trace | a **Playwright trace** of each failing test: every network call, the DOM at each step, a timeline. The best debugging tool. |
+
+With all three off, a failing test still shows its error, the code line and a short text snapshot of the page (`error-context.md`). The report stays small and has no images.
 
 **Before switching traces on**, know what you are publishing:
 
@@ -621,7 +624,7 @@ To work on specs, edit them in `tests/integration-tests/`, never in `.work/`. Ea
 | `ci/prepare-suite.sh` | Puts the suite to run at `.work/suite`: this branch's, or the product's (`ci/fetch-product.sh` + `ci/import-product-suite.mjs`). |
 | `ci/load-env.sh` | Builds one environment's settings; reads secrets safely; names anything missing. |
 | `ci/run-suite.sh` | Preflight, Playwright, and collecting results into `.work/out`. |
-| `ci/playwright.ci.config.ts` | The suite's own config, with recording behind `RECORD_VIDEO` / `RECORD_TRACES`. |
+| `ci/playwright.ci.config.ts` | The suite's own config, with recording behind `RECORD_SCREENSHOTS` / `RECORD_VIDEO` / `RECORD_TRACES`. |
 | `ci/summarize.mjs` | The verdict, the run summary and the Slack message. Uses the suite's own `scripts/regression-alert.mjs` for the comparison. |
 | `ci/publish-pages.sh`, `ci/push-pages.sh` | Add a run to the dashboard (the suite's `scripts/build-catalog.ts` + `dashboard/`) and push `gh-pages`. |
 | `ci/site-index.html`, `ci/build-site-index.mjs` | The landing page that lists every dashboard. |

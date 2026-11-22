@@ -118,6 +118,7 @@ jobs:
           INPUT_TENANT_SLUG: ${{ inputs.tenant_slug }}
           INPUT_DIGIT_TENANT: ${{ inputs.digit_tenant }}
           GREP: ${{ inputs.grep }}
+          RECORD_SCREENSHOTS: ${{ vars.RECORD_SCREENSHOTS }}
           RECORD_VIDEO: ${{ vars.RECORD_VIDEO }}
           RECORD_TRACES: ${{ vars.RECORD_TRACES }}
           PW_GLOBAL_TIMEOUT_MS: ${{ vars.PW_GLOBAL_TIMEOUT_MS || '5400000' }}

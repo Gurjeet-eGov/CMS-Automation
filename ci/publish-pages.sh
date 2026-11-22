@@ -99,5 +99,5 @@ SITE_KB="$(du -sk "$SITE" | cut -f1)"
 SIZE_MB=$(( SITE_KB / 1024 ))
 echo "[publish] site is ${SIZE_MB} MB"
 if (( SIZE_MB > 800 )); then
-  echo "::warning title=GitHub Pages size::The site is ${SIZE_MB} MB; GitHub Pages stops at 1 GB. Lower REPORTS_KEPT, or switch RECORD_VIDEO / RECORD_TRACES off."
+  echo "::warning title=GitHub Pages size::The site is ${SIZE_MB} MB; GitHub Pages stops at 1 GB. Lower REPORTS_KEPT, or switch RECORD_SCREENSHOTS / RECORD_VIDEO / RECORD_TRACES off."
 fi
