@@ -12,7 +12,7 @@ import { tenantSlug } from '../utils/identity-bff';
  */
 import { test, expect } from '@playwright/test';
 import { citizenOtpLogin } from '../utils/citizen-login';
-import { BASE_URL, generateCitizenPhone } from '../utils/env';
+import { BASE_URL, CITIZEN_LANGUAGE_PILL_TEXT, generateCitizenPhone } from '../utils/env';
 
 test.describe('Citizen home + landing', () => {
   test('/citizen/ redirects to /citizen/all-services', {
@@ -160,12 +160,12 @@ If the brand assets ever land as real DOM text, extend this spec — leaving the
   test('header language pill renders the current locale', {
     annotation: {
       type: 'description',
-      description: `Smoke check that the header language pill renders with the current locale ("English" by default). Doesn't assert the dropdown options because clicking the pill opens a native OS-level select with no [role="listbox"] in the DOM — only confirms the pill exists.
+      description: `Smoke check that the header language pill renders the UI's default language. The expected text is CITIZEN_LANGUAGE_PILL_TEXT from the environment's config.env ("English" when unset): the text exactly as the pill shows it, not a locale code. Doesn't assert the dropdown options — only confirms the pill exists.
 
 Steps:
 1. setTimeout 60s; OTP-login as a fresh citizen.
 2. Wait 2s for header to render.
-3. Locate label:has-text("English"); assert it is visible (within 5s).
+3. Locate the visible element whose text is exactly CITIZEN_LANGUAGE_PILL_TEXT (a <label> on older builds, a plain element on newer ones); assert it is visible (within 5s).
 
 Tightly scoped — bigger localization assertions live in dedicated specs (e.g. complaint-type-labels.spec.ts).`,
     },
@@ -175,11 +175,11 @@ Tightly scoped — bigger localization assertions live in dedicated specs (e.g. 
     await citizenOtpLogin(page, phone);
     await page.waitForTimeout(2000);
 
-    // Language pill is a <label> with the current locale name. Clicking
-    // it opens a native OS-level dropdown (no [role="listbox"] in the
-    // DOM) so we don't assert the options list — just that the pill
-    // renders with the current locale text.
-    const pill = page.locator('label:has-text("English")').first();
+    // The language pill shows the default language as text: a <label>
+    // ("English") on older builds, a plain element ("en") on newer ones.
+    // Match its exact text, from config, and don't assert the options list —
+    // just that the pill renders with the default language.
+    const pill = page.getByText(CITIZEN_LANGUAGE_PILL_TEXT, { exact: true }).filter({ visible: true }).first();
     await expect(pill, 'language pill should render with current locale').toBeVisible({
       timeout: 5_000,
     });

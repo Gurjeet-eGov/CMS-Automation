@@ -236,6 +236,22 @@ export const LOCALES = process.env.LOCALES
     : ['en_IN'];
 
 /**
+ * Checks the UI's default language: the text the citizen header's language
+ * pill shows before anyone changes it, copied exactly as it appears on screen
+ * (for example "English", or "en" as on nairobi). Not a locale code such as
+ * en_IN. Set CITIZEN_LANGUAGE_PILL_TEXT in the environment's config.env.
+ */
+export const CITIZEN_LANGUAGE_PILL_TEXT = process.env.CITIZEN_LANGUAGE_PILL_TEXT || 'English';
+
+/**
+ * The name a citizen gets on first OTP sign-in, before they set one, copied
+ * exactly as the app stores it (for example "Citizen" on DIGIT 3.0). Unset
+ * means the citizen's phone number, the older default. Set
+ * CITIZEN_DEFAULT_NAME in the environment's config.env.
+ */
+export const CITIZEN_DEFAULT_NAME = process.env.CITIZEN_DEFAULT_NAME || '';
+
+/**
  * Postal-code validation pattern + a known-valid sample for this deployment,
  * mirroring the app's globalConfigs CORE_POSTAL_CONFIGS.postalCodePattern.
  * Stock default is the 5-digit rule; mz.maputo runs '^[0-9]{4}(-[0-9]{2})?$'

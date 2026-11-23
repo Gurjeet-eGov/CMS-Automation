@@ -45,11 +45,11 @@ If this fails, every other citizen test will fail downstream — pairs with the 
   test('citizen can log in with OTP and reach home page', {
     annotation: {
       type: 'description',
-      description: `End-to-end BFF OTP login walk for a brand-new citizen — exercises the challenge, verification and tenant context-selection path. Asserts the citizen lands on a valid post-login URL with a Citizen.token in localStorage and no error fallback.
+      description: `End-to-end BFF OTP login walk for a brand-new citizen — exercises the challenge, verification and tenant context-selection path. Asserts the citizen lands on a valid post-login URL with a Citizen.token in sessionStorage and no error fallback.
 
 Steps:
 1. citizenOtpLoginViaUI(page, CITIZEN_PHONE) — drives the phone form, OTP form, language/city pickers.
-2. Read localStorage 'Citizen.token'; assert it's truthy.
+2. Read 'Citizen.token' from sessionStorage; assert it's truthy.
 3. Read page.url(); assert it does NOT contain '/login' or '/select-language'.
 4. Read body innerText; assert it does NOT contain 'Something went wrong'.
 
@@ -58,7 +58,7 @@ Catches the broadest class of citizen-auth regressions — register flow broken,
     tag: ['@area:auth', '@kind:regression', '@layer:ui', '@persona:citizen'] }, async ({ page }) => {
     await citizenOtpLoginViaUI(page, CITIZEN_PHONE);
 
-    const token = await page.evaluate(() => localStorage.getItem('Citizen.token'));
+    const token = await page.evaluate(() => sessionStorage.getItem('Citizen.token'));
     expect(token).toBeTruthy();
 
     // Verify we're on a citizen page (not stuck on login/select-language)

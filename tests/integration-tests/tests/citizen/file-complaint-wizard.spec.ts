@@ -14,8 +14,8 @@ import { tenantSlug } from '../utils/identity-bff';
  */
 import { test, expect, type Page } from '@playwright/test';
 import { citizenOtpLogin } from '../utils/citizen-login';
-import { BASE_URL, PGR_ID_PREFIX } from '../utils/env';
-import { readProvisionedCitizen } from '../utils/citizen-provision';
+import { BASE_URL } from '../utils/env';
+import { SRID_RE } from '../utils/pgr-idgen';
 import { requires } from '../utils/capabilities';
 import { continueFiling, currentPane, fillDetailsStep, fillLocationStep, primaryButton } from '../utils/citizen-filing';
 
@@ -266,8 +266,8 @@ Steps:
 3. Step 1 (Complaint details): fill the required description, pick every category level, click Next.
 4. Step 2 (Location): assert there is no default marker, complete the boundary cascade, and assert Next is enabled without a pin; select a pin, clear it while reverse geocoding is in flight, and assert it stays cleared.
 5. Step 3 (Review): Back to the map keeps the pin cleared; click Submit complaint.
-6. Assert the URL flips to /pgr/response and a complaint id matching ^<PGR_ID_PREFIX>-PGR-\\d{4}-\\d{2}-\\d{2}-\\d+$ is rendered.
-   The prefix is discovered live from egov-idgen (citizen.setup.ts); PGR_ID_PREFIX env is the fallback ("PG" stock, "NCCG" on Nairobi).
+6. Assert the URL flips to /pgr/response and a complaint id of the shape <any prefix>-PGR-YYYY-MM-DD-<seq> (SRID_RE) is rendered.
+   The prefix differs per workspace ("PG" stock, "NCCG" on Nairobi, …), so only the part from -PGR- on is pinned.
 
 Test timeout is 180s — the steps plus DOM settles plus the final POST regularly exceed 90s.`,
     },
@@ -308,11 +308,10 @@ Test timeout is 180s — the steps plus DOM settles plus the final POST regularl
     await expect(page).toHaveURL(/\/citizen\/pgr\/response/);
     const body = page.locator('body');
     await expect(body).toContainText('Complaint Submitted');
-    // Deployment-specific complaint-ID prefix is discovered live by
-    // citizen.setup.ts (egov-idgen pgr.servicerequestid) and persisted on the
-    // provisioned citizen; PGR_ID_PREFIX (env) is the fallback.
-    const pgrIdPrefix = readProvisionedCitizen()?.pgrIdPrefix ?? PGR_ID_PREFIX;
-    await expect(body).toContainText(new RegExp(`${pgrIdPrefix}-PGR-\\d{4}-\\d{2}-\\d{2}-\\d+`));
+    // Every workspace can have its own complaint-ID prefix, and discovering it
+    // (egov-idgen) can fail and fall back to a default. So pin only the shape:
+    // <any prefix>-PGR-YYYY-MM-DD-<seq> (SRID_RE).
+    await expect(body).toContainText(SRID_RE);
     await expect(body).toContainText(/Go back to home page/i);
 
     // Smoke: no error fallback rendered

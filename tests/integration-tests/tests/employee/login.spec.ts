@@ -69,6 +69,6 @@ test.describe('Employee Login — BFF', () => {
     expect(page.url()).toContain('/employee');
     await expect(page).not.toHaveURL(/\/user\/login/);
     expect(await page.locator('body').innerText()).not.toContain('Something went wrong');
-    expect(await page.evaluate(() => Boolean(localStorage.getItem('Employee.token')))).toBe(true);
+    expect(await page.evaluate(() => Boolean(sessionStorage.getItem('Employee.token')))).toBe(true);
   });
 });

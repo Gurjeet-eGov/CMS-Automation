@@ -165,7 +165,8 @@ Steps:
 3. Click Complaint Type select; pick the option matching liveServiceCode.
 4. Fill Description with >10 chars.
 5. pickLocality(page, liveBoundaryCode) — drives Hierarchy → Boundary type → Locality cascade.
-6. Fill Mobile number with a unique phone from generateCitizenPhone() (valid for the deployment's MDMS mobile rule — 9 digits starting with 7/1).
+6. Fill Mobile number with a unique phone from generateCitizenPhone() (valid for the deployment's MDMS mobile rule — 9 digits starting with 7/1), and Name with "Citizen".
+   The old blank-name check (the server falls back to the mobile number as the citizen's name) is deprecated in DIGIT 3.0: there a citizen without a name is "Citizen", and an all-digit name is refused (INVALID_NAME).
 7. Set up createReqPromise on /pgr-services/v2/request/_create.
 8. Click Create.
 9. Parse the captured request body; assert service.citizen.tenantId and address.tenantId both === TENANT_CODE (root: the suite targets root tenants only, #2398 decision 2, so resolveComplaintAddressTenant has no city to pick) and address.locality.code is non-empty.
@@ -200,7 +201,10 @@ Citizen tenant must be ROOT — assigning to city would break login flows. Clean
     // (9 digits starting with 7/1). A raw 10-digit 7… fails that rule.
     const phone = generateCitizenPhone();
     await page.getByLabel(/^Mobile number/i).fill(phone);
-    // Leave name blank intentionally — server should fall back to mobile.
+    // Deprecated in DIGIT 3.0: leaving the name blank so the server falls back
+    // to the mobile number. A citizen without a name is "Citizen" there, and
+    // the form's mobile-number default is refused as INVALID_NAME, so fill it.
+    await page.getByLabel(/^Name$/i).fill('Citizen');
 
     // Capture the create XHR so we can grab the SR id and the payload.
     const createReqPromise = page.waitForRequest((req) =>
@@ -774,9 +778,14 @@ Steps:
 
 Catches a regression in the citizen-display heuristic — without this badge admins might mistake a mobile string for an actual name.`,
     },
-    tag: ['@area:configurator-manage', '@area:pgr', '@kind:regression', '@layer:ui', '@persona:admin'] }, async ({
+    tag: ['@area:configurator-manage', '@area:pgr', '@kind:regression', '@layer:ui', '@persona:admin', '@deprecated:digit-3.0'] }, async ({
     page,
   }) => {
+    test.skip(
+      true,
+      'Deprecated in DIGIT 3.0: a citizen without a name gets "Citizen" and all-digit names are refused (INVALID_NAME), ' +
+        'so a citizen whose name equals their mobile number can no longer occur.',
+    );
     const auth = loadAuth();
     const wrappers = await pgrSearch(auth, TENANT, { limit: 100 });
     let target: string | null = null;
@@ -1157,13 +1166,15 @@ async function pickComplaintType(
   // Level labels are tenant data (RAINMAKER-PGR.ComplaintHierarchyDefinition:
   // "Category", "Complaint Category", …), so find each level by its own empty
   // placeholder instead: the next unpicked level is the first "Select…" trigger.
+  // Real waits: isVisible() ignores its timeout and answers at once, so on a
+  // slow MDMS load the walk used to stop before the levels or options rendered.
   for (let level = 0; level < 4; level++) {
     const sel = page.getByRole('combobox').filter({ hasText: /^Select…$/ }).first();
-    if (!(await sel.isVisible({ timeout: 8_000 }).catch(() => false))) break;
-    if (!(await sel.isEnabled().catch(() => false))) break;
+    if (!(await sel.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false))) break;
+    if (!(await expect(sel).toBeEnabled({ timeout: 8_000 }).then(() => true, () => false))) break;
     await sel.click();
     const opt = page.getByRole('option').first();
-    if (!(await opt.isVisible({ timeout: 5_000 }).catch(() => false))) {
+    if (!(await opt.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true, () => false))) {
       await page.keyboard.press('Escape').catch(() => {});
       break;
     }
@@ -1190,22 +1201,32 @@ async function pickLocality(
   // select offers `preferredCode` (any option when none is given). Options
   // render the raw code (LocalityPicker.tsx: `{b.name ?? b.code}`), so a
   // code-regex match is reliable.
+  //
+  // The picker is visible at once but stays disabled ("Loading…") until its
+  // data arrives: Hierarchy while boundary hierarchies load, Locality while
+  // boundaries load. Wait for "enabled", not "visible", or the walk sees no
+  // options and gives up before anything has loaded.
   const localityGroup = page
     .locator('div')
     .filter({ has: page.getByText(/Cascades from hierarchy/i) })
     .last();
-  await localityGroup.getByRole('combobox').first().waitFor({ state: 'visible', timeout: 15_000 });
   const selects = localityGroup.getByRole('combobox');
   const hierarchy = selects.nth(0);
   const boundaryType = selects.nth(1);
   const localityTrigger = selects.nth(2);
+  await expect(hierarchy).toBeEnabled({ timeout: 15_000 }).catch(() => {});
   const wanted = preferredCode
     ? page.getByRole('option', { name: new RegExp(escapeRegex(preferredCode)) }).first()
     : page.getByRole('option').first();
 
+  // An opened select renders its options a moment after the click.
+  const waitForList = () =>
+    page.getByRole('listbox').waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+
   const countOptions = async (trigger: import('@playwright/test').Locator): Promise<number> => {
     if (!(await trigger.isEnabled().catch(() => false))) return 0;
     await trigger.click();
+    await waitForList();
     const n = await page.getByRole('option').count();
     if (n === 0) await page.keyboard.press('Escape').catch(() => {});
     return n;
@@ -1217,8 +1238,10 @@ async function pickLocality(
     const typeN = await countOptions(boundaryType);
     for (let t = 0; t < typeN; t++) {
       await page.getByRole('option').nth(t).click();
+      await expect(localityTrigger).toBeEnabled({ timeout: 15_000 }).catch(() => {});
       if (await localityTrigger.isEnabled().catch(() => false)) {
         await localityTrigger.click();
+        await waitForList();
         if (await wanted.isVisible().catch(() => false)) {
           await wanted.click();
           return;

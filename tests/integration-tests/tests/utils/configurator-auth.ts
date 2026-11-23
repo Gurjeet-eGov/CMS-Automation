@@ -7,6 +7,7 @@
  */
 import { expect, type Page } from '@playwright/test';
 import { staffContext } from './auth';
+import { tenantCaseWorkaround } from './identity-bff';
 import { BASE_URL, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from './env';
 
 const CONFIGURATOR_BASE = process.env.CONFIGURATOR_BASE_URL || `${BASE_URL}/configurator`;
@@ -59,6 +60,12 @@ export async function loginConfigurator(page: Page): Promise<void> {
 
   const user = tokenResponse.UserRequest as Record<string, unknown> | undefined;
 
+  // TEMPORARY (egovernments/complaint-management-system#84, see tenantCaseWorkaround):
+  // with TENANT_CASE_WORKAROUND=true, store the selected workspace tenant
+  // lower-cased, as the Configurator UI does after sign-in, instead of the
+  // upper-case tenant such a workspace's sign-in returns. Off: the tenant as returned.
+  const sessionTenant = tenantCaseWorkaround() ? ROOT_TENANT.trim().toLowerCase() : null;
+
   // Navigate to configurator first so we can set localStorage on its origin
   await page.goto(CONFIGURATOR_BASE, {
     waitUntil: 'domcontentloaded',
@@ -66,9 +73,9 @@ export async function loginConfigurator(page: Page): Promise<void> {
   });
 
   await page.evaluate(
-    ({ token, userObj, apiOrigin }) => {
+    ({ token, userObj, apiOrigin, sessionTenant }) => {
       const roles = (userObj?.roles as Array<{ code: string }>) || [];
-      const tenant = userObj?.tenantId as string;
+      const tenant = sessionTenant ?? (userObj?.tenantId as string);
       localStorage.setItem(
         'crs-auth-state',
         JSON.stringify({
@@ -94,6 +101,7 @@ export async function loginConfigurator(page: Page): Promise<void> {
       token: tokenResponse.access_token,
       userObj: user || {},
       apiOrigin: new URL(BASE_URL).origin, // installDigitContext: API_ORIGIN || window.location.origin
+      sessionTenant,
     },
   );
 

@@ -19,7 +19,8 @@ export async function citizenSendOtp(mobile: string) {
     method: 'POST', headers: { 'Content-Type': 'application/json', Origin: new URL(BASE).origin },
     body: JSON.stringify({ mobileNumber: mobile, tenantSlug: tenantSlug(), purpose: 'signin' }),
   });
-  if (response.status !== 202) throw new Error(`BFF OTP send failed: HTTP ${response.status}`);
+  // 202 from the BFF; some deployed builds answer 200.
+  if (response.status !== 202 && response.status !== 200) throw new Error(`BFF OTP send failed: HTTP ${response.status}`);
   return response.json();
 }
 

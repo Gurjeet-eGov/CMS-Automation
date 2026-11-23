@@ -18,8 +18,8 @@ import { tenantSlug } from '../utils/identity-bff';
 import { test, expect } from '@playwright/test';
 import { citizenOtpLogin } from '../utils/citizen-login';
 import { seedComplaintAsCitizen } from '../utils/seed';
-import { BASE_URL, PGR_ID_PREFIX } from '../utils/env';
-import { readProvisionedCitizen } from '../utils/citizen-provision';
+import { BASE_URL } from '../utils/env';
+import { SRID_RE } from '../utils/pgr-idgen';
 
 // Disable trace/video so the spec runs cleanly with --no-deps (the
 // .playwright-artifacts-0 dir is only created by the full setup DAG).
@@ -114,7 +114,7 @@ The Map widget + "Open in Maps" only render when geoLocation has non-zero coords
 Steps:
 1. setTimeout 120s; citizenOtpLogin and visit /citizen/pgr/complaints (warm cache).
 2. Navigate directly to /digit-ui/citizen/pgr/complaints/{seeded id}; wait 4s.
-3. Assert page.url() matches /\\/digit-ui\\/citizen\\/pgr\\/complaints\\/<PGR_ID_PREFIX>-PGR-\\d{4}-\\d{2}-\\d{2}-\\d+/ (prefix from env).
+3. Assert page.url() matches /digit-ui/citizen/pgr/complaints/ followed by a complaint id of the shape <any prefix>-PGR-YYYY-MM-DD-<seq> (SRID_RE). The prefix differs per workspace, so only the part from -PGR- on is pinned.
 4. Assert page.url() does NOT contain '/complaint/details/' (no auto-redirect to the singular form).
 5. Assert the complaint details grid is visible.
 6. Assert body does NOT contain "Something went wrong".
@@ -144,13 +144,10 @@ If the SPA ever redirects plural → singular (or 404s), this test catches the c
     await page.waitForTimeout(4000);
 
     const url = page.url();
-    // Deployment-specific complaint-ID prefix is discovered live by
-    // citizen.setup.ts (egov-idgen) and persisted on the provisioned citizen;
-    // PGR_ID_PREFIX (env) is the fallback.
-    const pgrIdPrefix = readProvisionedCitizen()?.pgrIdPrefix ?? PGR_ID_PREFIX;
-    const detailUrlRe = new RegExp(
-      `/digit-ui/citizen/pgr/complaints/${pgrIdPrefix}-PGR-\\d{4}-\\d{2}-\\d{2}-\\d+`,
-    );
+    // Every workspace can have its own complaint-ID prefix, and discovering it
+    // (egov-idgen) can fail and fall back to a default. So pin only the shape:
+    // <any prefix>-PGR-YYYY-MM-DD-<seq> (SRID_RE).
+    const detailUrlRe = new RegExp(`/digit-ui/citizen/pgr/complaints/${SRID_RE.source}`);
     expect(url, 'plural /complaints/:id URL should serve the detail page').toMatch(detailUrlRe);
     expect(url, 'should NOT have redirected to the Routes.js-exported singular form').not.toContain(
       '/complaint/details/',

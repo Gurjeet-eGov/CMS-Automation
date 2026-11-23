@@ -20,10 +20,11 @@ import { getPersona } from '../utils/personas';
 import {
   BASE_URL, TENANT, ROOT_TENANT,
   ADMIN_USER, ADMIN_PASS, FIXED_OTP,
-  DEFAULT_PASSWORD, PGR_ID_PREFIX,
+  DEFAULT_PASSWORD,
   generateCitizenPhone,
 } from '../utils/env';
 import { SERVICE_CODE, LOCALITY_CODE } from '../utils/env';
+import { SRID_RE } from '../utils/pgr-idgen';
 import { fetchMdms } from '../utils/probes';
 
 import * as fs from 'fs';
@@ -135,11 +136,11 @@ test.describe.serial('PGR lifecycle — UI only', () => {
   test('1 — citizen logs in via UI with fixed OTP', {
     annotation: {
       type: 'description',
-      description: `Drives the citizen OTP login flow through the actual login form (no API shortcut). Confirms the auto-register-on-first-login behavior works end-to-end: a brand-new phone number can sign in with the mock OTP "123456" and walk straight into the citizen home page with a Citizen.token in localStorage.
+      description: `Drives the citizen OTP login flow through the actual login form (no API shortcut). Confirms the auto-register-on-first-login behavior works end-to-end: a brand-new phone number can sign in with the mock OTP "123456" and walk straight into the citizen home page with a Citizen.token in sessionStorage.
 
 Steps:
 1. citizenOtpLogin(page, CITIZEN_PHONE) — UI helper that drives the phone form, OTP form, and language/city pickers.
-2. Read localStorage 'Citizen.token'; assert it's truthy.
+2. Read 'Citizen.token' from sessionStorage; assert it's truthy.
 3. Set citizenLoggedIn flag, snap screenshot 01-citizen-logged-in.
 
 First link in a 6-step UI lifecycle. Marked test.slow() at the describe level — UI flow with multiple page hydrations.`,
@@ -147,7 +148,7 @@ First link in a 6-step UI lifecycle. Marked test.slow() at the describe level �
     tag: ['@area:pgr', '@kind:lifecycle', '@layer:ui', '@persona:cross'] }, async ({ page }) => {
     await citizenOtpLogin(page, CITIZEN_PHONE);
 
-    const token = await page.evaluate(() => localStorage.getItem('Citizen.token'));
+    const token = await page.evaluate(() => sessionStorage.getItem('Citizen.token'));
     expect(token).toBeTruthy();
     citizenLoggedIn = true;
     await snap(page, '01-citizen-logged-in');
@@ -180,7 +181,7 @@ Long timeout (180s) because of multiple boundary lookups and DOM settles. Catche
 
     // Login again (fresh page context)
     await citizenOtpLogin(page, CITIZEN_PHONE);
-    const token = await page.evaluate(() => localStorage.getItem('Citizen.token'));
+    const token = await page.evaluate(() => sessionStorage.getItem('Citizen.token'));
     expect(token).toBeTruthy();
 
     // Intercept PGR _create to capture serviceRequestId
@@ -240,10 +241,10 @@ Long timeout (180s) because of multiple boundary lookups and DOM settles. Catche
       serviceRequestId = capturedId;
     } else {
       const bodyText = await page.locator('body').innerText();
-      // Build the SRID regex from the deployment's own idgen prefix (PG on
-      // maputo, NCCG on nairobi, …) — a hardcoded `PG-PGR` matched nothing on
-      // any other deployment, leaving serviceRequestId undefined.
-      const match = bodyText.match(new RegExp(`${PGR_ID_PREFIX}-PGR-\\d{4}-\\d{2}-\\d{2}-\\d{6}`));
+      // Every workspace can have its own complaint-ID prefix (PG on maputo,
+      // NCCG on nairobi, …), and discovering it can fall back to a default,
+      // so match the shape only: <any prefix>-PGR-YYYY-MM-DD-<seq> (SRID_RE).
+      const match = bodyText.match(SRID_RE);
       if (match) serviceRequestId = match[0];
     }
 

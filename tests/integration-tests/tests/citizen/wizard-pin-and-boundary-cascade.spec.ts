@@ -60,7 +60,7 @@ The dropdowns are scoped to the cascade's own .pgr-boundary-cascade container, s
     // Use the provisioned citizen (citizen-fixture.json, mobile 744928150)
     // so login succeeds on every deployment without re-registering.
     await citizenOtpLogin(page);
-    const token = await page.evaluate(() => localStorage.getItem('Citizen.token'));
+    const token = await page.evaluate(() => sessionStorage.getItem('Citizen.token'));
     expect(token, 'OTP login should persist Citizen.token').toBeTruthy();
 
     await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr/create-complaint/complaint-type`, {

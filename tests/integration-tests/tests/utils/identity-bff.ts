@@ -301,6 +301,23 @@ export function citizenAccountTenantId(tenantId: string) {
 const CONTEXT_REFUSALS = new Set(['TENANT_CONTEXT_UNAVAILABLE', 'EMPLOYEE_ACCOUNT_NOT_LINKED', 'PENDING_INVITATION', 'DIGIT_ACCOUNT_NOT_FOUND', 'DIGIT_ACCOUNT_INACTIVE']);
 export const isContextRefusal = (err: unknown) => err instanceof IdentityHttpError && CONTEXT_REFUSALS.has(err.code);
 
+/**
+ * TEMPORARY, remove once egovernments/complaint-management-system#84 is fixed.
+ * Some workspaces' Identity BFF returns the tenant in upper case on
+ * Configurator sign-in but in lower case on employee and citizen sign-in (for
+ * example NAIROBI and nairobi). With TENANT_CASE_WORKAROUND=true:
+ * - tenant ids are compared ignoring case (sameTenant below), and
+ * - the Configurator session stores the workspace tenant lower-cased, as the
+ *   Configurator UI does after sign-in (loginConfigurator in configurator-auth.ts).
+ * Unset or any other value: strict comparison, and the tenant exactly as
+ * sign-in returns it.
+ */
+export const tenantCaseWorkaround = (): boolean => process.env.TENANT_CASE_WORKAROUND === 'true';
+
+export const sameTenant = (a: string | null | undefined, b: string | null | undefined): boolean =>
+  typeof a === 'string' && typeof b === 'string' &&
+  (tenantCaseWorkaround() ? a.toLowerCase() === b.toLowerCase() : a === b);
+
 export async function selectContext(request: APIRequestContext, baseURL: string, surface: Surface, tenantId: string) {
   const path = surface === 'citizen' ? 'contexts/citizen/_select' : 'contexts/_select';
   const body = surface === 'citizen' ? { surface } : { surface, tenantId };
@@ -311,10 +328,10 @@ export async function selectContext(request: APIRequestContext, baseURL: string,
   // egov-user issues CITIZEN tokens at the state root (`ke.bomet` -> `ke`); the
   // route tenant comes back as `context.tenant`. Employees stay on the tenant.
   const tokenTenant = surface === 'citizen' ? citizenAccountTenantId(tenantId) : tenantId;
-  if (!context.access_token || !context.UserRequest?.uuid || context.UserRequest.tenantId !== tokenTenant ||
+  if (!context.access_token || !context.UserRequest?.uuid || !sameTenant(context.UserRequest.tenantId, tokenTenant) ||
       context.UserRequest.type !== userType || !Number.isFinite(context.expires_in) || context.expires_in <= 0 ||
       context.token_type?.toLowerCase() !== 'bearer' || context.scope !== 'read' || 'refresh_token' in context ||
-      (surface === 'citizen' && context.tenant?.tenantId !== tenantId)) {
+      (surface === 'citizen' && !sameTenant(context.tenant?.tenantId, tenantId))) {
     throw new Error('BFF returned an invalid or wrong-tenant DIGIT context');
   }
   return context;
@@ -322,12 +339,51 @@ export async function selectContext(request: APIRequestContext, baseURL: string,
 
 export type ReadOtp = (challenge: { challengeId: string; mobileNumber: string; tenantId: string; requestedAt: number }) => Promise<string>;
 
-/** Fixed codes are explicitly opted into; this helper never labels them real non-fixed OTP evidence. */
-export const configuredOtp: ReadOtp = async () => {
+/**
+ * Reads a real, per-request OTP from the deployment's SMS sink
+ * (IDENTITY_TEST_OTP_SINK_URL, e.g. https://<host>/sms-sink/messages). The sink
+ * answers GET <url>?phone=<digits> with [{ phone: "+254…", otp, at }]. Takes the
+ * newest message for this number sent after the request (2 s clock skew allowed),
+ * polling for up to 30 s.
+ */
+export const sinkOtp: ReadOtp = async ({ mobileNumber, requestedAt }) => {
+  const sinkUrl = process.env.IDENTITY_TEST_OTP_SINK_URL;
+  if (!sinkUrl) throw new Error('Set IDENTITY_TEST_OTP_SINK_URL to read OTPs from the SMS sink');
+  const url = new URL(sinkUrl);
+  url.searchParams.set('phone', mobileNumber);
+  const since = requestedAt - 2_000;
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const response = await fetch(url, { headers: { accept: 'application/json' } }).catch(() => null);
+    if (response?.ok) {
+      const messages = await response.json().catch(() => []) as Array<{ phone?: string; otp?: string; at?: string }>;
+      const match = (Array.isArray(messages) ? messages : [])
+        .filter(m => typeof m.otp === 'string' && /^\d{6}$/.test(m.otp)
+          && typeof m.phone === 'string' && m.phone.replace(/\D/g, '').endsWith(mobileNumber)
+          && Date.parse(m.at ?? '') >= since)
+        .sort((a, b) => Date.parse(b.at!) - Date.parse(a.at!))[0];
+      if (match) return match.otp!;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`No OTP for this number reached the SMS sink within 30 s (${url.origin}${url.pathname})`);
+};
+
+/**
+ * Fixed codes are explicitly opted into; this helper never labels them real non-fixed OTP evidence.
+ * Without a fixed code, IDENTITY_TEST_OTP_SINK_URL switches to the SMS-sink reader above.
+ */
+export const configuredOtp: ReadOtp = async challenge => {
   const code = process.env.IDENTITY_TEST_OTP_CODE;
-  if (!code || !/^\d{6}$/.test(code)) throw new Error('Set IDENTITY_TEST_OTP_CODE for fixed-code fixtures or provide a real delivery reader');
+  if (!code && process.env.IDENTITY_TEST_OTP_SINK_URL) return sinkOtp(challenge);
+  if (!code || !/^\d{6}$/.test(code)) throw new Error('Set IDENTITY_TEST_OTP_CODE for fixed-code fixtures, IDENTITY_TEST_OTP_SINK_URL for an SMS sink, or provide a real delivery reader');
   return code;
 };
+
+/** The BFF accepts an OTP send with 202; some deployed builds answer 200. Either carries the challenge. */
+export async function otpChallenge(response: Pick<APIResponse, 'status' | 'json'>): Promise<{ challengeId: string }> {
+  return identityJson<{ challengeId: string }>(response, response.status() === 200 ? 200 : 202);
+}
 
 export async function citizenSignIn(request: APIRequestContext, baseURL: string, mobileNumber: string, readOtp: ReadOtp = configuredOtp, slug?: string) {
   const tenant = await resolveTenant(request, baseURL, slug);
@@ -348,7 +404,7 @@ export async function citizenSignIn(request: APIRequestContext, baseURL: string,
       sent = await send();
     }
   }
-  const challenge = await identityJson<{ challengeId: string }>(sent, 202);
+  const challenge = await otpChallenge(sent);
   if (!challenge.challengeId) throw new Error('BFF did not return an OTP challenge');
   const code = await readOtp({ challengeId: challenge.challengeId, mobileNumber, tenantId: tenant.tenantId, requestedAt });
   const verified = await identityJson<{ authenticated: boolean; tenant: typeof tenant }>(
@@ -356,7 +412,10 @@ export async function citizenSignIn(request: APIRequestContext, baseURL: string,
       headers, data: { tenantSlug: tenant.urlSlug, challengeId: challenge.challengeId, code, purpose: 'signin' },
     }),
   );
-  if (!verified.authenticated || verified.tenant?.tenantId !== tenant.tenantId || verified.tenant.urlSlug !== tenant.urlSlug) {
+  // Some deployed builds answer only { authenticated: true }.
+  // The tenant is still checked when present, and the _select below always checks it.
+  if (!verified.authenticated || (verified.tenant &&
+      (!sameTenant(verified.tenant.tenantId, tenant.tenantId) || verified.tenant.urlSlug !== tenant.urlSlug))) {
     throw new Error('OTP verification did not establish the expected tenant session');
   }
   // The same request context carries the HttpOnly session cookie from _verify to _select.

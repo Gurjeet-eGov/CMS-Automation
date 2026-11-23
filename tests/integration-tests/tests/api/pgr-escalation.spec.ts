@@ -178,7 +178,12 @@ Steps:
 4. Assert PENDINGATSUPERVISOR and RESOLVEDBYSUPERVISOR are absent.
 5. Fail on drift. Workflow migration is a deployment operation and this test never mutates live configuration.`,
     },
-    tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross'] }, async () => {
+    tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross', '@deprecated:digit-3.0'] }, async () => {
+    test.skip(
+      true,
+      'Deprecated in DIGIT 3.0: requires an ESCALATE self-loop at PENDINGFORASSIGNMENT, but the DIGIT 3.0 PGR workflow ' +
+        'escalates only from PENDINGATLME. Covered by "14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only".',
+    );
 
     const biz = await fetchPgrWorkflow(adminToken);
     expect(biz).toBeTruthy();
@@ -808,7 +813,12 @@ Deliberately LAST in this serial block, and deliberately separate from test 2. T
 
 This is the final guard against workflow/source drift.`,
     },
-    tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:cross'] }, async () => {
+    tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:cross', '@deprecated:digit-3.0'] }, async () => {
+    test.skip(
+      true,
+      'Deprecated in DIGIT 3.0: requires an ESCALATE self-loop at PENDINGFORASSIGNMENT, but the DIGIT 3.0 PGR workflow ' +
+        'escalates only from PENDINGATLME. Covered by "14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only".',
+    );
     const biz = await fetchPgrWorkflow(adminToken);
 
     const stateUuids = new Set(biz.states.map((s: any) => s.uuid));
@@ -837,5 +847,59 @@ This is the final guard against workflow/source drift.`,
     expect(biz.states.some((s: any) => s.applicationStatus === 'RESOLVEDBYSUPERVISOR')).toBe(false);
     expect((atLme.actions || []).some((a: any) => a.action === 'FORWARD')).toBe(false);
     expect((forAssignment.actions || []).some((a: any) => a.action === 'ASSIGNEDBYAUTOESCALATION')).toBe(false);
+  });
+
+  test('14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only', {
+    annotation: {
+      type: 'description',
+      description: `Audits the deployed PGR businessService against the DIGIT 3.0 escalation contract, where escalation happens only while a complaint is with the LME. Replaces tests 2 and 14, which also required an ESCALATE self-loop at PENDINGFORASSIGNMENT.
+
+Steps:
+1. Fetch the PGR businessService.
+2. Every action's nextState resolves to a state that exists.
+3. PENDINGATLME has an active ESCALATE whose nextState is PENDINGATLME itself, with SYSTEM among its roles (the scheduler escalates as SYSTEM).
+4. PENDINGFORASSIGNMENT has no ESCALATE: an unassigned complaint has no assignee whose supervisor could take it.
+5. No FORWARD at PENDINGATLME, no ASSIGNEDBYAUTOESCALATION at PENDINGFORASSIGNMENT, and no PENDINGATSUPERVISOR / RESOLVEDBYSUPERVISOR states.
+
+Deliberately LAST in this serial block, as test 14 was: an audit of the deployment's configuration, not a precondition for the escalation chain. Read-only; never mutates live configuration.`,
+    },
+    tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:cross'] }, async () => {
+    const biz = await fetchPgrWorkflow(adminToken);
+    expect(biz, 'the PGR businessService must be readable').toBeTruthy();
+
+    const stateUuids = new Set(biz.states.map((s: any) => s.uuid));
+    const dangling: string[] = [];
+    for (const st of biz.states) {
+      for (const act of st.actions || []) {
+        if (act.nextState && !stateUuids.has(act.nextState)) {
+          dangling.push(`${st.applicationStatus} --${act.action}--> ${act.nextState}`);
+        }
+      }
+    }
+    expect(
+      dangling,
+      `PGR workflow has transitions pointing at non-existent states:\n  ${dangling.join('\n  ')}`,
+    ).toEqual([]);
+
+    const atLme = biz.states.find((s: any) => s.applicationStatus === 'PENDINGATLME');
+    const forAssignment = biz.states.find((s: any) => s.applicationStatus === 'PENDINGFORASSIGNMENT');
+    expect(atLme, 'PENDINGATLME state must exist').toBeTruthy();
+    expect(forAssignment, 'PENDINGFORASSIGNMENT state must exist').toBeTruthy();
+
+    const escAtLme = (atLme.actions || []).find((a: any) => a.action === 'ESCALATE');
+    expect(escAtLme, 'PENDINGATLME must offer ESCALATE').toBeTruthy();
+    expect(escAtLme.active, 'ESCALATE at PENDINGATLME must be active').not.toBe(false);
+    expect(escAtLme.nextState, 'ESCALATE at PENDINGATLME must loop back to PENDINGATLME').toBe(atLme.uuid);
+    expect(escAtLme.roles, 'the scheduler escalates as SYSTEM').toContain('SYSTEM');
+
+    expect(
+      (forAssignment.actions || []).some((a: any) => a.action === 'ESCALATE'),
+      'DIGIT 3.0 escalates only from PENDINGATLME: PENDINGFORASSIGNMENT must not offer ESCALATE',
+    ).toBe(false);
+
+    expect((atLme.actions || []).some((a: any) => a.action === 'FORWARD')).toBe(false);
+    expect((forAssignment.actions || []).some((a: any) => a.action === 'ASSIGNEDBYAUTOESCALATION')).toBe(false);
+    expect(biz.states.some((s: any) => s.applicationStatus === 'PENDINGATSUPERVISOR')).toBe(false);
+    expect(biz.states.some((s: any) => s.applicationStatus === 'RESOLVEDBYSUPERVISOR')).toBe(false);
   });
 });

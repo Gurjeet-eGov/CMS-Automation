@@ -71,9 +71,14 @@ Steps:
 
 Skips gracefully on deployments missing a fleshed-out tenant — better than failing on environment dependency.`,
     },
-    tag: ['@area:configurator-manage', '@kind:regression', '@layer:ui', '@persona:admin'] }, async ({
+    tag: ['@area:configurator-manage', '@kind:regression', '@layer:ui', '@persona:admin', '@deprecated:digit-3.0'] }, async ({
     page,
   }) => {
+    test.skip(
+      true,
+      'Deprecated in DIGIT 3.0: a tenant is the workspace account, named after the workspace (for example nairobi), ' +
+        'with no city or district details, so there is no City / District to show.',
+    );
     // Pick a tenant that has a fleshed-out `city` block (ke.nakuru is
     // seeded with districtName in the default `ke` dataset).
     const auth = loadAuth();

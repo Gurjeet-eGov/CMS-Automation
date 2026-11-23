@@ -6,7 +6,7 @@ import { getMobileValidationRule, generateValidMobile, derivedStartingDigits, ty
 import { getPgrIdPrefix } from './pgr-idgen';
 import { tryGetProfile } from './profile';
 import { request as playwrightRequest } from '@playwright/test';
-import { citizenSignIn } from './identity-bff';
+import { citizenSignIn, sameTenant } from './identity-bff';
 
 export interface ProvisionedCitizen {
   mobile: string;
@@ -92,7 +92,7 @@ export async function provisionFreshCitizen(opts?: { tenant?: string; mobile?: s
   const request = await playwrightRequest.newContext();
   try {
     const context = await citizenSignIn(request, BASE_URL, mobile);
-    if (context.UserRequest.tenantId !== tenant) throw new Error('Provisioned citizen belongs to a different workspace');
+    if (!sameTenant(context.UserRequest.tenantId, tenant)) throw new Error('Provisioned citizen belongs to a different workspace');
     const name = context.UserRequest.name;
     if (typeof name !== 'string' || !name) throw new Error('Provisioned citizen has no name');
     return {

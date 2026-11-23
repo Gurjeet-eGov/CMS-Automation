@@ -2,11 +2,11 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 import { BASE_URL } from './env';
 import { readProvisionedCitizen } from './citizen-provision';
-import { citizenSignIn, configuredOtp, identityJson, resolveTenant, selectContext, surfacePath, type DigitContext } from './identity-bff';
+import { citizenSignIn, configuredOtp, identityJson, otpChallenge, resolveTenant, selectContext, surfacePath, type DigitContext } from './identity-bff';
 
-/** localStorage read that survives the SPA navigating mid-poll. */
+/** sessionStorage read that survives the SPA navigating mid-poll. */
 const hasCitizenToken = (page: Page) =>
-  page.evaluate(() => Boolean(localStorage.getItem('Citizen.token'))).catch(() => false);
+  page.evaluate(() => Boolean(sessionStorage.getItem('Citizen.token'))).catch(() => false);
 
 type SessionCookies = Parameters<BrowserContext['addCookies']>[0];
 /**
@@ -39,7 +39,7 @@ export async function citizenLoginViaApi(page: Page, phone?: string, session?: S
   await page.goto(`${BASE_URL}${surfacePath('citizen', 'login')}`, { waitUntil: 'domcontentloaded' });
   await expect.poll(() => hasCitizenToken(page)).toBe(true);
   await expect(page).not.toHaveURL(/\/login(?:[?#]|$)/);
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('Citizen.user-info') || '{}'));
+  const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('Citizen.user-info') || '{}'));
   expect(stored.uuid).toBe(context.UserRequest.uuid);
 }
 
@@ -55,7 +55,7 @@ export async function citizenOtpLoginViaUI(page: Page, phone: string): Promise<v
   const requestedAt = Date.now();
   const sent = page.waitForResponse(r => new URL(r.url()).pathname === '/identity/v1/citizen/otp/_send' && r.request().method() === 'POST');
   await page.getByRole('button', { name: /continue|next|send.*(?:otp|code)/i }).first().click();
-  const challenge = await identityJson<{ challengeId: string }>(await sent, 202);
+  const challenge = await otpChallenge(await sent);
   const code = await configuredOtp({ challengeId: challenge.challengeId, mobileNumber: phone, tenantId: tenant.tenantId, requestedAt });
   const inputs = page.locator('input[autocomplete="one-time-code"], input[name="otp"], input[inputmode="numeric"]');
   await expect(inputs.first()).toBeVisible();

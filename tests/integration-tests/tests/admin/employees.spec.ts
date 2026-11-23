@@ -21,7 +21,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { loadAuth, employeeSearch, type AuthInfo } from '../utils/manage/api';
-import { testCode, testCodeIndexed } from '../utils/manage/codes';
+import { lettersOnly, testCode, testCodeIndexed } from '../utils/manage/codes';
 import { TENANT, ROOT_TENANT } from '../utils/env';
 import {
   getMobileValidationRule,
@@ -360,9 +360,14 @@ Steps:
 
 Cleanup uses the inline softDeleteEmployee helper because HRMS has no DELETE endpoint and effectiveFrom must be Date.now().`,
     },
-    tag: ['@area:configurator-manage', '@area:hrms', '@kind:happy-path', '@layer:ui', '@persona:admin'] }, async ({
+    tag: ['@area:configurator-manage', '@area:hrms', '@kind:happy-path', '@layer:ui', '@persona:admin', '@deprecated:digit-3.0'] }, async ({
     page,
   }, testInfo) => {
+    test.skip(
+      true,
+      'Deprecated in DIGIT 3.0: HRMS refuses an employee without a current assignment (COMPAT_REFUSED: needs a department and a designation). ' +
+        'Covered by "2b. single create with a current assignment".',
+    );
     const code = testCode(testInfo, 'EMP_CREATE');
     const uniq = code.split('_').pop() || '00000';
     // Mobile valid for THIS tenant's live MDMS rule (Kenya starts 7/1,
@@ -463,6 +468,83 @@ Cleanup uses the inline softDeleteEmployee helper because HRMS has no DELETE end
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((list[0].user as any)?.mobileNumber).toBe(mobile);
     void found;
+  });
+
+  test('2b. single create with a current assignment (department + designation) — DIGIT 3.0', {
+    annotation: {
+      type: 'description',
+      description: `DIGIT 3.0 version of test 2. HRMS refuses an employee without a current assignment (COMPAT_REFUSED: "DIGIT 3.0 employees need a department and a designation; send a current assignment"), so the single-create walk adds one through the form's Assignments section and checks HRMS stored it. Keeps test 2's guards: CCRS#436 success toast and the API check that the employee landed EMPLOYED.
+
+Steps:
+1. Generate a unique code + a mobile valid for the tenant's MDMS rule; track for cleanup.
+2. Navigate to /employees/create.
+3. Fill Name (letters only: DIGIT 3.0's individual registry refuses names that carry digits), Employee Code, Mobile Number, Email, Date of Birth (1990-05-14), Date of Appointment (2026-01-15); pick the EMPLOYEE role.
+4. Assignments: click "Add assignment"; pick the first Department and the first Designation; mark it the current assignment. From Date keeps its default (today).
+5. Click Create; wait for navigation back to LIST_PATH within 45s.
+6. CCRS#436: a role=status toast matching /created/i is visible within 5s.
+7. API: /egov-hrms/employees/_search with codes=<code> returns exactly 1 employee, EMPLOYED, whose current assignment carries the chosen department and designation codes.
+
+Cleanup uses the inline softDeleteEmployee helper, as test 2.`,
+    },
+    tag: ['@area:configurator-manage', '@area:hrms', '@kind:happy-path', '@layer:ui', '@persona:admin'] }, async ({
+    page,
+  }, testInfo) => {
+    const code = testCode(testInfo, 'EMP_ASSIGN');
+    const uniq = code.split('_').pop() || '00000';
+    const mobile = generateValidMobile(mobileRule);
+    createdCodes.add(code);
+
+    await page.goto(`${LIST_PATH}/create`);
+    await expect(page.getByLabel(/^Name/i)).toBeVisible({ timeout: 20_000 });
+
+    // Name auto-derives Code; override Code with the PW_ value for cleanup.
+    await page.getByLabel(/^Name/i).fill(`PW Employee ${lettersOnly(uniq)}`);
+    const codeInput = page.getByLabel(/^Employee Code/i);
+    await codeInput.fill('');
+    await codeInput.fill(code);
+    await page.getByLabel(/^Mobile Number/i).fill(mobile);
+    await page.getByLabel(/^Email/i).fill(`${code.toLowerCase()}@example.com`);
+    await page.getByLabel(/^Date of Birth/i).fill('1990-05-14');
+    await page.getByLabel(/^Date of Appointment/i).fill('2026-01-15');
+
+    // HRMS rejects employees with zero roles; pick EMPLOYEE as test 2 does.
+    const roleCombobox = page.getByRole('combobox', { name: /^Roles?$/i }).first();
+    await roleCombobox.click();
+    await roleCombobox.fill('EMPLOYEE');
+    await page.getByRole('option', { name: /^EMPLOYEE/i }).first().click();
+
+    // One current assignment with a department and a designation.
+    await page.getByRole('button', { name: 'Add assignment' }).click();
+    const department = await pickFirstSelectOption(page, /Select department/i);
+    const designation = await pickFirstSelectOption(page, /Select designation/i);
+    await page.getByRole('radio', { name: /Current assignment/i }).first().check();
+
+    await Promise.all([
+      page.waitForURL(LIST_PATH, { timeout: 45_000 }),
+      page.getByRole('button', { name: /^Create$/ }).click(),
+    ]);
+
+    // CCRS#436: success toast after Create (see test 2).
+    const toast = page.getByRole('status').filter({ hasText: /created/i }).first();
+    await expect(toast).toBeVisible({ timeout: 5_000 });
+
+    // HRMS stored the employee with the chosen current assignment.
+    const auth = loadAuth();
+    const direct = await postJson(
+      auth,
+      `${HRMS_SEARCH}?tenantId=${TENANT_CODE}&codes=${encodeURIComponent(code)}&limit=1&offset=0`,
+      { RequestInfo: requestInfo(auth) },
+    );
+    const list = (direct.Employees as HrmsEmployee[]) || [];
+    expect(list.length).toBe(1);
+    expect(list[0].code).toBe(code);
+    expect(list[0].employeeStatus).toBe('EMPLOYED');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const assignments = ((list[0] as any).assignments as Array<Record<string, unknown>> | undefined) ?? [];
+    const current = assignments.find((a) => a.isCurrentAssignment === true);
+    expect(current, 'HRMS must store a current assignment').toBeTruthy();
+    expect(current?.department, 'current assignment department').toBe(department);
+    expect(current?.designation, 'current assignment designation').toBe(designation);
   });
 
   test('3. too-short mobile shows inline validation error', {
@@ -1078,4 +1160,21 @@ async function buildEmployeeXlsx(rows: BulkRow[]): Promise<Buffer> {
   }
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf as ArrayBuffer);
+}
+
+/**
+ * Opens the form select whose placeholder matches (it reads "Loading..." until
+ * its options arrive, so the locator waits for the real placeholder), picks the
+ * first option and returns that option's code (its data-value).
+ */
+async function pickFirstSelectOption(page: Page, placeholder: RegExp): Promise<string> {
+  const trigger = page.getByRole('combobox').filter({ hasText: placeholder }).first();
+  await expect(trigger).toBeEnabled({ timeout: 15_000 });
+  await trigger.click();
+  const option = page.getByRole('option').first();
+  await option.waitFor({ state: 'visible', timeout: 10_000 });
+  const value = (await option.getAttribute('data-value')) ?? '';
+  expect(value, `${placeholder} must offer at least one option with a code`).not.toBe('');
+  await option.click();
+  return value;
 }

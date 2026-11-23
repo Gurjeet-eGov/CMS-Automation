@@ -14,7 +14,7 @@
 import { createHash } from 'node:crypto';
 import { BASE_URL } from './env';
 import { request as playwrightRequest, type APIRequestContext, type Page } from '@playwright/test';
-import { IdentityHttpError, KeycloakSessionExpiredError, KeycloakSignInError, passwordSignIn, resolveTenant, selectContext, surfacePath, type SignInCookie } from './identity-bff';
+import { IdentityHttpError, KeycloakSessionExpiredError, KeycloakSignInError, passwordSignIn, resolveTenant, sameTenant, selectContext, surfacePath, type SignInCookie } from './identity-bff';
 
 export interface TokenResponse {
   access_token: string;
@@ -145,7 +145,7 @@ export async function getDigitToken(config: AuthConfig): Promise<TokenResponse> 
     }
   });
   const employee = (refused?: IdentityHttpError) => select('employee', async (api) => {
-    if ((await resolveTenant(api, baseURL)).tenantId !== tenant) throw refused ?? new IdentityHttpError(403, 'CONFIGURATOR_ROLE_REQUIRED');
+    if (!sameTenant((await resolveTenant(api, baseURL)).tenantId, tenant)) throw refused ?? new IdentityHttpError(403, 'CONFIGURATOR_ROLE_REQUIRED');
   });
   const refusedAt = employeeOnly.get(key);
   let token: TokenResponse;

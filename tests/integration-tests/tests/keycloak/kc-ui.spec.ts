@@ -12,7 +12,7 @@ test.describe('Keycloak and citizen BFF browser entry', () => {
     await citizenOtpLoginViaUI(page, generateCitizenPhone());
     expect(paths).toEqual(expect.arrayContaining(['/identity/v1/citizen/otp/_send', '/identity/v1/citizen/otp/_verify', '/identity/v1/contexts/citizen/_select']));
     expect(paths.some(path => path.startsWith('/token-exchange/') || path === '/user/oauth/token')).toBe(false);
-    expect(await page.evaluate(() => Boolean(localStorage.getItem('Citizen.token')))).toBe(true);
+    expect(await page.evaluate(() => Boolean(sessionStorage.getItem('Citizen.token')))).toBe(true);
   });
 
   test('Google entry uses BFF authorize and server-owned PKCE', { tag: ['@area:keycloak', '@persona:citizen'] }, async ({ page, request }) => {

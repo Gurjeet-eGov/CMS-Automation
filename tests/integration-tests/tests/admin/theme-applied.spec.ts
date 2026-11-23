@@ -14,6 +14,7 @@ interface ThemeConfigRecord {
     digitv2?: Record<string, string>;
     text?: { primary?: string };
     border?: string;
+    'card-border'?: string;
   };
 }
 
@@ -92,6 +93,16 @@ Catches the most common theme regression — MDMS fetch fails or the applyTheme(
     'MDMS ThemeConfig still carries the stock DIGIT orange — this deployment has no branding override, so this test could not distinguish "applied" from "never applied"',
   ).not.toBe(STOCK_DIGIT_ORANGE);
 
+  // --color-border has two MDMS sources. The app's theme map writes `border` to
+  // --color-border (and --color-input-border) and `card-border` to
+  // --color-card-border AND --color-border; card-border is applied after
+  // border, so when MDMS defines both, --color-border carries the card-border
+  // colour. Either value proves the MDMS theme reached :root.
+  const borderValues = [colors.border, colors['card-border']]
+    .filter((v): v is string => typeof v === 'string' && hexPattern.test(v))
+    .map((v) => v.toLowerCase());
+  const borderMatcher = expect.stringMatching(new RegExp(`^(${borderValues.join('|')})$`));
+
   // --- half 2: the browser must APPLY it to :root ---
   // Polled, not slept on: index.js paints the bundled default synchronously and
   // digitInitData() overwrites it only once the MDMS promise resolves.
@@ -120,6 +131,6 @@ Catches the most common theme regression — MDMS fetch fails or the applyTheme(
       primaryDark: expected.primaryDark.toLowerCase(),
       headerSidenav: expected.headerSidenav.toLowerCase(),
       textPrimary: expected.textPrimary.toLowerCase(),
-      border: expected.border.toLowerCase(),
+      border: borderMatcher,
     });
 });
