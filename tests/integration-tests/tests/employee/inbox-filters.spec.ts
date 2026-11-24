@@ -239,7 +239,20 @@ test.describe('employee inbox-v2 — filters narrow the result set', () => {
     expect(cleared.every((r) => r.status !== rejectedLabel), 'after clear, back to non-REJECTED default').toBeTruthy();
   });
 
-  test('complaint-type filter → only rows of the chosen serviceCode @p0', { tag: ['@persona:employee'] }, async ({ page }) => {
+  test('complaint-type filter → only rows of the chosen serviceCode @p0', {
+    annotation: {
+      type: 'description',
+      description: `The inbox's complaint-type filter narrows the list to one complaint type. The filter is a Category → Subcategory pair (#pgr-filter-category, #pgr-filter-subcategory); the test drives Subcategory, which lists every type and fills in its category.
+
+Steps:
+1. Open the inbox on All Complaints at the largest page size; read the rows and learn which complaint types have complaints.
+2. Open Subcategory and read its option labels; prefer the labels of types that have rows.
+3. For each candidate label (filters cleared between attempts): pick it, Apply, and check the search carries serviceCode=.
+4. Assert every visible row has that one serviceCode.
+5. Clear All brings rows back.`,
+    },
+    tag: ['@persona:employee'],
+  }, async ({ page }) => {
     test.skip(!!seedSkip, seedSkip);
     test.skip(!secondTypeAvailable, 'deployment has only one complaint type — nothing to narrow between');
     await openInbox(page);
@@ -268,27 +281,39 @@ test.describe('employee inbox-v2 — filters narrow the result set', () => {
     );
     const labels = await labelCandidates(admin!.token, targets);
 
-    // Open the "Complaint Subtype" dropdown and read its option labels.
-    const ddInput = page.locator('.digit-dropdown-employee-select-wrap input[type="text"]').first();
-    const optionItems = page.locator('.digit-dropdown-options-card .digit-dropdown-item');
-    await ddInput.click();
-    await page.waitForTimeout(800);
-    const optionCount = await optionItems.count();
-    expect(optionCount, 'subtype dropdown lists options').toBeGreaterThan(0);
-    const optionTexts: string[] = (await optionItems.allInnerTexts()).map((s) => s.trim());
+    // The complaint-type filter is a Category → Subcategory pair:
+    // <button id="pgr-filter-category|pgr-filter-subcategory" role="combobox"
+    // aria-haspopup="listbox">. Subcategory lists every complaint type (valued
+    // by serviceCode); picking one fills in its category, which then narrows the
+    // Subcategory list. So candidates are picked by LABEL, not position, with the
+    // filters cleared between attempts. Older builds had a single digit-dropdown
+    // "Complaint Subtype" input; the .or() fallbacks keep them working.
+    const ddTrigger = page
+      .locator('#pgr-filter-subcategory')
+      .or(page.locator('.digit-dropdown-employee-select-wrap input[type="text"]'))
+      .first();
+    const optionItems = page.getByRole('option').or(page.locator('.digit-dropdown-options-card .digit-dropdown-item'));
+    const openSubcategory = async (): Promise<void> => {
+      await ddTrigger.click();
+      await optionItems.first().waitFor({ state: 'visible', timeout: 10_000 });
+    };
+    const exactLabel = (label: string) => new RegExp(`^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
 
-    /** Option indices to try, best-first: the ones whose label matches a type we
-     *  know has rows, then (only if none matched) every remaining option, whose
-     *  serviceCode we can still learn from the request URL after applying. */
-    const preferred: number[] = [];
+    await openSubcategory();
+    const optionTexts: string[] = (await optionItems.allInnerTexts()).map((s) => s.trim()).filter(Boolean);
+    expect(optionTexts.length, 'subcategory dropdown lists options').toBeGreaterThan(0);
+    await page.keyboard.press('Escape');
+
+    /** Labels to try, best-first: the ones matching a type we know has rows,
+     *  then (only if none matched) every option, whose serviceCode we can still
+     *  learn from the request URL after applying. */
+    const preferred: string[] = [];
     for (const code of targets) {
       const wanted = labels.get(code) || [code];
-      const i = optionTexts.findIndex((txt) => wanted.some((w) => txt === w || txt.toLowerCase() === w.toLowerCase()));
-      if (i >= 0 && !preferred.includes(i)) preferred.push(i);
+      const txt = optionTexts.find((t) => wanted.some((w) => t === w || t.toLowerCase() === w.toLowerCase()));
+      if (txt && !preferred.includes(txt)) preferred.push(txt);
     }
-    const order = preferred.length
-      ? preferred
-      : [...Array(optionCount).keys()];
+    const order = preferred.length ? preferred : optionTexts;
 
     // Apply each candidate until one returns a non-empty, single-serviceCode row
     // set. With a label match this is a single pass; the unmatched fallback
@@ -297,15 +322,15 @@ test.describe('employee inbox-v2 — filters narrow the result set', () => {
     let matched = false;
     let matchedCode = '';
     const tried: string[] = [];
-    for (const i of order) {
-      await ddInput.click();
-      await page.waitForTimeout(500);
-      await optionItems.nth(i).click();
-      await page.waitForTimeout(400);
+    for (const label of order) {
+      // A previous pick narrowed the list to its category: reset first.
+      if (tried.length > 0) await clearFilters(page);
+      await openSubcategory();
+      await optionItems.filter({ hasText: exactLabel(label) }).first().click();
       const url = await applyFilter(page);
       expect(url).toContain('serviceCode=');
       const requested = url.match(/[?&]serviceCode=([^&]+)/)?.[1] || '';
-      tried.push(requested || optionTexts[i]);
+      tried.push(requested || label);
       if (!preferred.length && !targets.includes(requested)) continue; // no rows possible
       await showAllInboxRows(page);
       const rows = await readInboxRows(page);

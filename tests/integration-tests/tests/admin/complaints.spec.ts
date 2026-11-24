@@ -683,11 +683,11 @@ The assertion is an exact array equality against a pre-filter measurement — it
   test('8. show page renders address extras and a working geo link', {
     annotation: {
       type: 'description',
-      description: `Confirms the complaint Show page renders the address-extras rows (Landmark, Street, Pincode) AND that the geo-link opens a maps URL containing the actual lat/lng. Skips if no complaint has non-zero coords.
+      description: `Confirms the complaint Show page renders the address-extras rows (Landmark, Street, Pincode) AND that the geo-link opens a maps URL containing the actual lat/lng. Seeds a complaint with coordinates when none of the latest has them.
 
 Steps:
 1. pgrSearch limit 50; iterate looking for a complaint with non-zero geoLocation.
-2. test.skip if none.
+2. If none, seed one as a citizen with fixed non-zero coordinates (cleaned up in afterAll).
 3. Navigate to /complaints/<id>/show.
 4. For each label in ['Landmark','Street','Pincode'], assert the LABEL is visible (values may be blank).
 5. Set up a popup waitForEvent; click the Map/Geo/Location link.
@@ -717,7 +717,17 @@ If the geo link doesn't pop a new tab or doesn't carry the coords, an admin can'
         break;
       }
     }
-    if (!target) test.skip(true, 'No complaint with non-zero geoLocation on tenant');
+    // None among the latest complaints (test runs file many without a pin):
+    // seed one with fixed non-zero coordinates rather than skip, and clean it up.
+    if (!target) {
+      const geo = { latitude: -1.2921, longitude: 36.8219 };
+      const seeded = await seedComplaintAsCitizen({
+        description: `PW show-page geo link — ${new Date().toISOString()}`,
+        geoLocation: geo,
+      });
+      createdComplaints.add(seeded.srid);
+      target = { id: seeded.srid, lat: geo.latitude, lng: geo.longitude };
+    }
 
     await page.goto(`${LIST_PATH}/${target!.id}/show`);
 

@@ -514,10 +514,7 @@ Cleanup uses the inline softDeleteEmployee helper, as test 2.`,
     await page.getByRole('option', { name: /^EMPLOYEE/i }).first().click();
 
     // One current assignment with a department and a designation.
-    await page.getByRole('button', { name: 'Add assignment' }).click();
-    const department = await pickFirstSelectOption(page, /Select department/i);
-    const designation = await pickFirstSelectOption(page, /Select designation/i);
-    await page.getByRole('radio', { name: /Current assignment/i }).first().check();
+    const { department, designation } = await addCurrentAssignment(page);
 
     await Promise.all([
       page.waitForURL(LIST_PATH, { timeout: 45_000 }),
@@ -599,7 +596,7 @@ Pairs with the happy-path test (#2) — together they bracket valid + invalid mo
 
 Steps:
 1. Generate a unique code; track for cleanup.
-2. Create via UI: fill Name, Code, Mobile, Email (required since the invite model), DOB '1985-07-20'; Click Create.
+2. Create via UI: fill Name, Code, Mobile, Email (required since the invite model), DOB '1985-07-20', and one current assignment (first Department and Designation; DIGIT 3.0 HRMS requires it); Click Create.
 3. Search for the code; click matching row; click Edit.
 4. Assert Date of Birth input has value '1985-07-20' (NOT epoch-ms).
 5. Assert Employee Code input is disabled.
@@ -636,6 +633,9 @@ Code and Username are write-once because HRMS doesn't allow mutating either afte
     await roleCombobox.click();
     await roleCombobox.fill('EMPLOYEE');
     await page.getByRole('option', { name: /^EMPLOYEE/i }).first().click();
+    // DIGIT 3.0 HRMS refuses an employee without a current assignment
+    // (COMPAT_REFUSED: needs a department and a designation).
+    await addCurrentAssignment(page);
 
     await Promise.all([
       page.waitForURL(LIST_PATH, { timeout: 45_000 }),
@@ -954,7 +954,7 @@ the test is actually asserting.`,
       // this spec's ROOT tenant which has no boundary hierarchy at all).
       ...validCodes.map((c, i) => ({
         employeeCode: c,
-        name: `PW Bulk ${i + 1}`,
+        name: `PW Bulk ${lettersOnly(String(i + 1))}`, // letters only: DIGIT 3.0 refuses names with digits
         userName: '',
         // Valid for THIS tenant's MDMS mobile rule — no hardcoded '07…'.
         mobileNumber: generateValidMobile(mobileRule),
@@ -973,7 +973,7 @@ the test is actually asserting.`,
       // "5 rows, 2 errors" contract to 4 rows — see annotation.
       {
         employeeCode: invalidCodes[0],
-        name: 'PW Bulk Bad1',
+        name: 'PW Bulk Bad One',
         userName: '',
         mobileNumber: '99999',
         emailId: `${invalidCodes[0].toLowerCase()}@example.com`,
@@ -988,7 +988,7 @@ the test is actually asserting.`,
       // Invalid row 2 — unknown department + unknown role code.
       {
         employeeCode: invalidCodes[1],
-        name: 'PW Bulk Bad2',
+        name: 'PW Bulk Bad Two',
         userName: '',
         // Valid mobile + email so the ONLY validation errors are the unknown dept/role.
         mobileNumber: generateValidMobile(mobileRule),
@@ -1177,4 +1177,18 @@ async function pickFirstSelectOption(page: Page, placeholder: RegExp): Promise<s
   expect(value, `${placeholder} must offer at least one option with a code`).not.toBe('');
   await option.click();
   return value;
+}
+
+/**
+ * Adds one current assignment on the Create Employee form: clicks "Add
+ * assignment", picks the first Department and Designation, and marks it the
+ * current assignment (From Date keeps its default, today). DIGIT 3.0 HRMS
+ * refuses an employee without one (COMPAT_REFUSED). Returns the chosen codes.
+ */
+async function addCurrentAssignment(page: Page): Promise<{ department: string; designation: string }> {
+  await page.getByRole('button', { name: 'Add assignment' }).click();
+  const department = await pickFirstSelectOption(page, /Select department/i);
+  const designation = await pickFirstSelectOption(page, /Select designation/i);
+  await page.getByRole('radio', { name: /Current assignment/i }).first().check();
+  return { department, designation };
 }

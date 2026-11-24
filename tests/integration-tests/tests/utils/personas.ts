@@ -690,9 +690,18 @@ export async function resolveSeedPlan(opts?: { profile?: DeploymentProfile }): P
     };
   }
 
+  // Prefer the credentialed LME persona (EMPLOYEE_USER) as the assignee when it
+  // qualifies. On DIGIT 3.0 only a complaint's current assignee may ESCALATE it
+  // (ESCALATION_NOT_HOLDER), so specs that act as the assignee need one whose
+  // password the suite has. Otherwise the order is unchanged (by code).
+  const lmePersona = await resolvePersona('lme', { profile }).catch(() => null);
+  const ordered = lmePersona
+    ? [...eligible.filter((e) => e.uuid === lmePersona.uuid), ...eligible.filter((e) => e.uuid !== lmePersona.uuid)]
+    : eligible;
+
   let picked: { service: (typeof services)[number]; assignee: DiscoveredEmployee } | null = null;
   for (const service of services) {
-    const assignee = eligible.find((e) => e.departments.includes(service.department));
+    const assignee = ordered.find((e) => e.departments.includes(service.department));
     if (assignee) {
       picked = { service, assignee };
       break;

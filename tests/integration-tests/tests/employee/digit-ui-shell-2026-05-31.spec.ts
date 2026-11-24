@@ -47,7 +47,24 @@ const ASSIGNED_COMPLAINT_ID =
 test.describe('employee digit-ui shell bundle', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('hosted sign-in + chrome + visible decrypt + inbox honest drives', { tag: ['@persona:employee'] }, async ({ page }) => {
+  test('hosted sign-in + chrome + visible decrypt + inbox honest drives', {
+    annotation: {
+      type: 'description',
+      description: `One pass through the employee app's sign-in and shell, covering #592, #505, #622, #344 and #432.
+
+Steps:
+1. A complaint assigned to an employee exists (lifecycle setup, or ASSIGNED_COMPLAINT_ID).
+2. #592: /digit-ui/globalConfigs.js is served and names the state tenant.
+3. #505 sub-1: the hosted sign-in page renders its brand banner, not white.
+4. #505 sub-3: the sign-in header logo renders and loads. The page takes it from MDMS common-masters.StateInfo (logoUrl / logoUrlWhite); when both are empty it shows the workspace name instead, and this step fails saying so.
+5. #622: signing in completes and the employee shell mounts (no 503 / "Something went wrong").
+6. #505 sub-2: the header shows the signed-in user's initial.
+7. #505 sub-4: dropdown icons render dark, not white-on-white.
+8. #344: the assigned complaint's details show the citizen's name and mobile decrypted, not as hex.
+9. #432: the inbox mounts, every row is in an open workflow state, the status filter is populated, and only the sortable column has a sort icon.`,
+    },
+    tag: ['@persona:employee'],
+  }, async ({ page }) => {
     // This test used to carry an unconditional `test.fixme(true, …)` blaming
     // two onboarding-data gaps. Both claims were false and are now retired:
     //   * "#344 needs a seeded ASSIGNED_COMPLAINT_ID" — lifecycle.setup.ts DOES
@@ -75,6 +92,14 @@ test.describe('employee digit-ui shell bundle', () => {
     // (keycloak/theme-src EmployeeTemplate.tsx); the digit-ui form with its
     // .banner / City picker is gone. Without carousel images the card sits on
     // .dg-banner (--color-digitv2-header-sidenav), with them on .dg-carousel-shell.
+    // The sign-in theme fetches its branding (MDMS common-masters.StateInfo,
+    // which holds the logo URLs) while it loads; keep it to explain a missing logo.
+    const brandingResp = page
+      .waitForResponse(
+        (r) => r.url().includes('/identity/v1/branding-api/mdms-v2/') && r.request().method() === 'POST',
+        { timeout: 30_000 },
+      )
+      .catch(() => null);
     await page.goto(authorizeUrl(BASE_URL, 'employee'));
     await expect(page.locator('#username')).toBeVisible({ timeout: 30_000 });
     const shell = page.locator('.dg-root.dg-employee').locator('.dg-banner, .dg-carousel-shell').first();
@@ -92,8 +117,24 @@ test.describe('employee digit-ui shell bundle', () => {
      * element; naturalWidth guards against a decoded-but-empty box too. The
      * stylesheet pins height 56px; 20px is the collapse floor, not a size pin.
      */
+    const stateInfo = await brandingResp
+      .then(async (r) => {
+        const body = (await r?.json().catch(() => null)) as
+          | { MdmsRes?: { 'common-masters'?: { StateInfo?: Array<{ logoUrl?: string; logoUrlWhite?: string }> } } }
+          | null;
+        return body?.MdmsRes?.['common-masters']?.StateInfo?.[0] ?? null;
+      })
+      .catch(() => null);
+    const logoNotConfigured = !!stateInfo && !stateInfo.logoUrl && !stateInfo.logoUrlWhite;
     const logo = page.locator('.dg-banner-header__logo').first();
-    await expect(logo, '#505 sub-3 — the sign-in header logo must render').toBeVisible();
+    await expect(
+      logo,
+      '#505 sub-3 — the sign-in header logo must render.' +
+        (logoNotConfigured
+          ? ' It comes from MDMS common-masters.StateInfo.logoUrl (logoUrlWhite on the dark banner), which is empty ' +
+            'for this workspace, so the page shows the workspace name instead.'
+          : ''),
+    ).toBeVisible();
     // The CSS gives the <img> its box before the request lands: wait for the decode.
     await expect
       .poll(() => logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), {
