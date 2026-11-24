@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * build-site-index.mjs — write <site>/dashboards.json: one entry per dashboard
- * (<source>/<environment>/catalog.json) with its newest run, for the landing
- * page (ci/site-index.html).
+ * (<branch>/<environment>/catalog.json) with its newest run, for the landing
+ * page (ci/site-index.html). Folder names are made safe (ci/dashboard-key.mjs);
+ * the real names ("Nai Pepea") come from the dashboard's about.json.
  *
  * Usage: node ci/build-site-index.mjs <site-dir>
  */
@@ -27,10 +28,13 @@ for (const source of dirs(site)) {
     try { catalog = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { continue; }
     const runs = Array.isArray(catalog.runs) ? catalog.runs : [];
     const last = runs[0] || null;
+    let about = {};
+    try { about = JSON.parse(fs.readFileSync(path.join(site, source, environment, 'about.json'), 'utf8')) || {}; } catch { about = {}; }
+    const name = (v, fallback) => (typeof v === 'string' && v.trim() ? v.trim() : fallback);
     dashboards.push({
       key: `${source}/${environment}`,
-      source,
-      environment,
+      source: name(about.branch, source),
+      environment: name(about.environment, environment),
       url: `${source}/${environment}/`,
       runs: runs.length,
       lastRun: last && pick(last, ['id', 'startedAt', 'passed', 'failed', 'timedOut', 'skipped', 'notRun', 'total', 'cutShort', 'hasReport', 'branch', 'sha', 'baseUrl']),

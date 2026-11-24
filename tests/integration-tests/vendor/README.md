@@ -1,8 +1,5 @@
 # vendor/ — product files this suite needs from outside its own folder
 
-This folder is written by `ci/import-product-suite.mjs` (part of CMS-Automation's
-"Sync product suite" workflow and `ci/prepare-suite.sh --source product`). **Do not edit it by hand.**
-
 ## Why it exists
 
 In the product repo (`egovernments/Citizen-Complaint-Resolution-System`) this suite lives at `tests/integration-tests`,
@@ -19,10 +16,10 @@ Copied from `egovernments/Citizen-Complaint-Resolution-System` at `develop`, com
 
 ## Working on it
 
-- **To refresh it:** run the "Sync product suite" workflow. Every sync re-copies these files from the product repo
-  and re-applies the same import rewrite, so they never drift from the product.
-- **To change the behaviour:** fix it in the product repo, because these are the product's own source files, then sync.
-  If an implementation really needs a different version, change the importing spec on that implementation's
-  `impl/<name>` branch to import its own helper instead of editing this copy. The next sync would overwrite an edited copy.
-- **When a new spec imports another file from outside the suite:** nothing to do. The next sync finds it, vendors it,
-  and adds a row above. If the file can't be found, the sync stops and names it.
+- **If the product changes the original:** copy the new version over the file here, by hand, from the product repo,
+  and update the commit above.
+- **To change the behaviour:** fix it in the product repo, because these are the product's own source files, then copy it here.
+  If one deployment really needs a different version, change the importing spec on that deployment's branch
+  to import its own helper instead of editing this copy.
+- **When a new spec imports another file from outside the suite:** copy that file here at the same path under
+  `vendor/product/`, point the import at the copy with the comment above, and add a row to the table.

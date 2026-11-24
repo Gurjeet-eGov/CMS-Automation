@@ -12,8 +12,10 @@
 #   citizen | employee | admin | lifecycle   that folder under tests/
 #   full           everything (the only scope that feeds the dashboard history)
 #
-# Reads (all optional): ENV_SECRETS, INPUT_BASE_URL, INPUT_TENANT_SLUG,
-# INPUT_DIGIT_TENANT (see ci/load-env.sh); GREP; RECORD_VIDEO, RECORD_TRACES;
+# Reads (all optional): ENV_CONFIG and ENV_SECRETS (on GitHub: the chosen
+# environment's CONFIG_ENV and SECRETS_ENV), INPUT_BASE_URL, INPUT_TENANT_SLUG,
+# INPUT_DIGIT_TENANT (see ci/load-env.sh); GREP; RECORD_SCREENSHOTS,
+# RECORD_VIDEO, RECORD_TRACES;
 # PW_GLOBAL_TIMEOUT_MS (default 5400000 = 90 min).
 #
 # Test failures are NOT an error here: the run's verdict is decided later, by
@@ -22,8 +24,9 @@
 # .work/out/ afterwards:
 #   run-meta.json            what ran, where, and anything that stopped it
 #   report.json              Playwright's JSON report (if it got that far)
+#   results.xml              the same results as JUnit XML, for Test Run (artifact test-results)
 #   playwright-report/       the HTML report
-#   test-results/            screenshots (+ video / traces when switched on)
+#   test-results/            failure context (+ screenshots / video / traces when switched on)
 #   deployment-profile.json  what profile-setup discovered (no secrets in it)
 # Token files (auth*.json, citizen-fixture.json) are never copied out.
 set -uo pipefail
@@ -73,7 +76,7 @@ RUN_ID="$(date -u +%Y-%m-%d_%H%M)_${SHA:0:8}"
 
 cd "$SUITE" || exit 2
 # Results from an earlier run in this folder must never pass for this run's.
-rm -rf report.json playwright-report test-results deployment-profile.json
+rm -rf report.json results.xml playwright-report test-results deployment-profile.json
 PROBLEMS=""
 SECRET_KEYS=""
 # shellcheck source=ci/load-env.sh
@@ -83,8 +86,8 @@ if ! source "$ROOT/ci/load-env.sh" "$ENVIRONMENT"; then
     [[ -n "$p" ]] && echo "::error title=Configuration::$p" && echo "[run] cannot start: $p" >&2
   done
 fi
-# Each secret is exported on its own now; the raw block needn't reach Playwright.
-unset ENV_SECRETS
+# Each setting is exported on its own now; the raw blocks needn't reach Playwright.
+unset ENV_SECRETS ENV_CONFIG
 
 # Preflight: is the deployment reachable at all? An unreachable host would
 # otherwise surface as dozens of setup timeouts.
@@ -112,41 +115,44 @@ if [[ -z "$PROBLEMS" && "$PRE_OK" == true ]]; then
   [[ -n "$GREP" ]] && CMD+=(--grep "$GREP")
   CMD+=(${EXTRA[@]+"${EXTRA[@]}"})
   echo "[run] ${CMD[*]}"
-  echo "[run] recording: video=${RECORD_VIDEO:-off} traces=${RECORD_TRACES:-off} (screenshots of failures always)"
+  echo "[run] recording: screenshots=${RECORD_SCREENSHOTS:-off} video=${RECORD_VIDEO:-off} traces=${RECORD_TRACES:-off}"
   "${CMD[@]}"
   PW_EXIT=$?
   echo "[run] playwright exited $PW_EXIT (test failures are judged by the report step)"
 fi
 FINISHED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-for f in report.json playwright-report test-results deployment-profile.json; do
+for f in report.json results.xml playwright-report test-results deployment-profile.json; do
   [[ -e "$f" ]] && cp -R "$f" "$OUT/"
 done
 
+# The dashboard's folder on gh-pages: <branch>/<environment>, made safe for a
+# folder name ("Nai Pepea" → nai-pepea). See ci/dashboard-key.mjs.
+SUITE_BRANCH="$(node -p 'require(process.argv[1]).branch' "$ROOT/.work/suite-source.json" 2>/dev/null || true)"
+DASHBOARD_KEY="$(node "$ROOT/ci/dashboard-key.mjs" "${SUITE_BRANCH:-unknown}" "$ENVIRONMENT")"
+
 # Everything run-meta.json says comes through the environment, so no value is
 # ever spliced into code.
-RUN_ID="$RUN_ID" ENVIRONMENT="$ENVIRONMENT" SCOPE="$SCOPE" PARTIAL="$PARTIAL" GREP="$GREP" \
+DASHBOARD_KEY="$DASHBOARD_KEY" RUN_ID="$RUN_ID" ENVIRONMENT="$ENVIRONMENT" SCOPE="$SCOPE" PARTIAL="$PARTIAL" GREP="$GREP" \
 STARTED="$STARTED" FINISHED="$FINISHED" PW_EXIT="$PW_EXIT" PROBLEMS="$PROBLEMS" \
 PRE_OK="$PRE_OK" PRE_CODE="$PRE_CODE" PRE_ERR="$PRE_ERR" SECRET_KEYS="$SECRET_KEYS" \
 M_BASE_URL="${BASE_URL:-}" M_TENANT="${DIGIT_TENANT:-}" M_SLUG="${IDENTITY_TEST_TENANT_SLUG:-}" \
-M_VIDEO="${RECORD_VIDEO:-}" M_TRACES="${RECORD_TRACES:-}" \
+M_SCREENSHOTS="${RECORD_SCREENSHOTS:-}" M_VIDEO="${RECORD_VIDEO:-}" M_TRACES="${RECORD_TRACES:-}" \
 node -e '
   const fs = require("fs");
   const e = process.env;
   const on = v => /^(1|true|yes|on)$/i.test((v || "").trim());
   const source = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "x";
-  const sourceKey = source.kind === "product" ? `product-${slug(source.ref)}` : slug(source.branch);
   const meta = {
     runId: e.RUN_ID,
     environment: e.ENVIRONMENT,
     scope: e.SCOPE,
     grep: e.GREP || null,
     partial: e.PARTIAL === "true",
-    dashboardKey: `${sourceKey}/${e.ENVIRONMENT}`,
+    dashboardKey: e.DASHBOARD_KEY,
     source,
     target: { baseUrl: e.M_BASE_URL || null, tenant: e.M_TENANT || null, workspaceSlug: e.M_SLUG || null },
-    recording: { video: on(e.M_VIDEO), traces: on(e.M_TRACES) },
+    recording: { screenshots: on(e.M_SCREENSHOTS), video: on(e.M_VIDEO), traces: on(e.M_TRACES) },
     startedAt: e.STARTED,
     finishedAt: e.FINISHED,
     configProblems: (e.PROBLEMS || "").split("\n").filter(Boolean),
