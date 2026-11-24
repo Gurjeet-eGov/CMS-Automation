@@ -35,7 +35,7 @@ This repo holds the CMS/PGR Playwright integration suite and runs it on GitHub A
 | **Secret** | An encrypted value you store once in the repo settings. Workflows can read it; nobody can read it back, and logs show `***` instead. | `CONFIG_ENV` and `SECRETS_ENV` in each environment, `SLACK_WEBHOOK_URL` (§2) |
 | **Environment** | A named set of secrets in the repo settings (Settings → Environments). Here: one per deployment, holding its two files. | `naipepea`, `net_two`, … (§2, §5) |
 | **Variable** | A plain, non-secret setting stored in the repo settings: a switch. | `RECORD_VIDEO`, `REPORTS_KEPT`, … (§8) |
-| **Artifact** | Files a run keeps for download. Here: the HTML report and `report.json`, kept 14 days. | "Artifacts" box at the bottom of a run page |
+| **Artifact** | Files a run keeps for download. Here: the HTML report and `report.json` (`results-<environment>`), and the results as JUnit XML (`test-results`), kept 90 days. | "Artifacts" box at the bottom of a run page |
 | **GitHub Pages** | A free static website served from a branch of this repo. | the `gh-pages` branch → your dashboard |
 
 What happens when you press **Run workflow** on *Integration tests*:
@@ -459,7 +459,7 @@ It keeps 30 full runs. The newest `REPORTS_KEPT` (5) of them keep their full rep
 
 ### The downloadable results (artifact)
 
-At the bottom of the run page, **Artifacts** → `results-<environment>`. This is a zip of the HTML report and `report.json` (plus screenshots, video or traces of failing tests if you switched them on), kept 14 days. To open it:
+At the bottom of the run page, **Artifacts** → `results-<environment>`. This is a zip of the HTML report and `report.json` (plus screenshots, video or traces of failing tests if you switched them on), kept 90 days. To open it:
 
 1. Unzip it.
 2. Run:
@@ -475,6 +475,8 @@ From a terminal:
 ```bash
 gh run download <run-id> -n results-naipepea
 ```
+
+Next to it, **`test-results`** holds the same results as JUnit XML (`results.xml`), under one name for every environment. It's what Test Run reads to bring a run's results in (see [Connect your test suite to Test Run](https://github.com/Gurjeet-eGov/Claude-Extensions/blob/master/test-run-console/docs/connect-a-suite.md)).
 
 ### What pass, fail and skip mean in this suite
 

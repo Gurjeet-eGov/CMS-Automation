@@ -24,6 +24,7 @@
 # .work/out/ afterwards:
 #   run-meta.json            what ran, where, and anything that stopped it
 #   report.json              Playwright's JSON report (if it got that far)
+#   results.xml              the same results as JUnit XML, for Test Run (artifact test-results)
 #   playwright-report/       the HTML report
 #   test-results/            failure context (+ screenshots / video / traces when switched on)
 #   deployment-profile.json  what profile-setup discovered (no secrets in it)
@@ -75,7 +76,7 @@ RUN_ID="$(date -u +%Y-%m-%d_%H%M)_${SHA:0:8}"
 
 cd "$SUITE" || exit 2
 # Results from an earlier run in this folder must never pass for this run's.
-rm -rf report.json playwright-report test-results deployment-profile.json
+rm -rf report.json results.xml playwright-report test-results deployment-profile.json
 PROBLEMS=""
 SECRET_KEYS=""
 # shellcheck source=ci/load-env.sh
@@ -121,7 +122,7 @@ if [[ -z "$PROBLEMS" && "$PRE_OK" == true ]]; then
 fi
 FINISHED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-for f in report.json playwright-report test-results deployment-profile.json; do
+for f in report.json results.xml playwright-report test-results deployment-profile.json; do
   [[ -e "$f" ]] && cp -R "$f" "$OUT/"
 done
 

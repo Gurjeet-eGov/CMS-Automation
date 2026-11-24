@@ -38,7 +38,7 @@ mkdir -p "$WORK"
 
 # Run output and token files must never be carried over from a previous run or
 # copied in from a suite folder someone ran tests in.
-OUTPUTS=(playwright-report test-results report.json auth.json auth-api.json citizen-fixture.json
+OUTPUTS=(playwright-report test-results report.json results.xml auth.json auth-api.json citizen-fixture.json
   lifecycle-fixtures.json deployment-profile.json catalog.json history.json .git-sha)
 rsync_suite() { # <from-dir>
   local excludes=(--exclude 'node_modules/')

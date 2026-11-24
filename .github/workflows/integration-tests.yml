@@ -1,4 +1,6 @@
 name: Integration tests
+# Each run's title says where it ran and what: "Integration tests · Nai Pepea · smoke".
+run-name: Integration tests · ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }} · ${{ inputs.scope || 'full' }}
 
 # Runs the CMS/PGR Playwright suite against one deployment, publishes full runs
 # to the GitHub Pages dashboard, and raises the alarm (red run + Slack) only when
@@ -148,9 +150,22 @@ jobs:
         with:
           name: results-${{ env.ENVIRONMENT }}
           path: .work/out/
-          retention-days: 14
+          retention-days: 90 # GitHub's longest for a public repo
           overwrite: true
           include-hidden-files: true # the results sit under .work/
+          if-no-files-found: warn
+
+      # The results alone, as JUnit XML, under one name for every environment:
+      # what Test Run (or any tool) reads to bring a run's results in.
+      - name: Upload test results (JUnit)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: .work/out/results.xml
+          retention-days: 90
+          overwrite: true
+          include-hidden-files: true
           if-no-files-found: warn
 
   report:
