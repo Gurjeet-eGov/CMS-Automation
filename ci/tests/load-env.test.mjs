@@ -193,8 +193,22 @@ test('a malformed CONFIG_ENV line names the CONFIG_ENV secret', () => {
   assert.match(r.problems[0], /line 4 of the CONFIG_ENV secret of the demo environment is not KEY=value/);
 });
 
-test('GitHub Environment names may use capitals and -, but never reach another folder', () => {
+test('GitHub Environment names may use spaces, capitals and -, but never reach another folder', () => {
   const box = sandbox();
+  assert.match(raw(box, 'Nai Pepea', { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=0 /);
   assert.match(raw(box, 'Net-Two', { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=0 /);
-  assert.match(raw(box, '../demo', { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=1 problems=\[environment name '..\/demo' must be letters, digits, - or _/);
+  for (const bad of ['../demo', 'a/b', '.hidden']) {
+    assert.match(raw(box, bad, { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=1 problems=\[environment name .* can't contain/, bad);
+  }
+});
+
+test('an environment name with a space still gives a safe expectations file name', () => {
+  const box = sandbox();
+  const dir = path.join(box.root, 'environments', 'Nai Pepea');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'expectations.json'), '{}');
+  const out = spawnSync('bash', ['-c', `source "${LOAD_ENV}" "Nai Pepea" >/dev/null; echo "rc=$? file=[$EXPECTATIONS_FILE]"`], {
+    cwd: box.suite, encoding: 'utf8', env: { PATH: process.env.PATH, CI_ROOT: box.root, ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' },
+  }).stdout;
+  assert.match(out, /rc=0 file=\[deploy\/expectations\/ci-Nai_Pepea\.json\]/);
 });

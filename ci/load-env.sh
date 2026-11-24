@@ -79,9 +79,10 @@ _le_main() {
   # The config: the pasted CONFIG_ENV on GitHub, else the file in this repo.
   local config_text="" config_where=""
   if [[ -n "${ENV_CONFIG:-}" ]]; then
-    # A GitHub Environment name: no slashes or dots that could reach another folder.
-    if [[ ! "$env_name" =~ ^[A-Za-z0-9_-]+$ ]]; then
-      _le_problem "environment name '$env_name' must be letters, digits, - or _"
+    # A GitHub Environment name may hold spaces and capitals ("Nai Pepea"), but
+    # must never point into another folder.
+    if [[ -z "$env_name" || "$env_name" == *"/"* || "$env_name" == *"\\"* || "$env_name" == .* || "$env_name" =~ [[:cntrl:]] ]]; then
+      _le_problem "environment name '$env_name' can't contain /, \\ or start with a dot"
       return 1
     fi
     config_text="$ENV_CONFIG"
@@ -134,8 +135,11 @@ _le_main() {
   # 3. an expectations file kept with the environment
   if [[ -f "$dir/expectations.json" ]]; then
     mkdir -p deploy/expectations
-    cp "$dir/expectations.json" "deploy/expectations/ci-$env_name.json"
-    export EXPECTATIONS_FILE="deploy/expectations/ci-$env_name.json"
+    # a safe file name, whatever the environment is called
+    local env_file
+    env_file="$(printf '%s' "$env_name" | tr -c 'A-Za-z0-9_-' '_')"
+    cp "$dir/expectations.json" "deploy/expectations/ci-$env_file.json"
+    export EXPECTATIONS_FILE="deploy/expectations/ci-$env_file.json"
   fi
 
   # 4. run inputs
