@@ -126,9 +126,14 @@ for f in report.json results.xml playwright-report test-results deployment-profi
   [[ -e "$f" ]] && cp -R "$f" "$OUT/"
 done
 
+# The dashboard's folder on gh-pages: <branch>/<environment>, made safe for a
+# folder name ("Nai Pepea" → nai-pepea). See ci/dashboard-key.mjs.
+SUITE_BRANCH="$(node -p 'require(process.argv[1]).branch' "$ROOT/.work/suite-source.json" 2>/dev/null || true)"
+DASHBOARD_KEY="$(node "$ROOT/ci/dashboard-key.mjs" "${SUITE_BRANCH:-unknown}" "$ENVIRONMENT")"
+
 # Everything run-meta.json says comes through the environment, so no value is
 # ever spliced into code.
-RUN_ID="$RUN_ID" ENVIRONMENT="$ENVIRONMENT" SCOPE="$SCOPE" PARTIAL="$PARTIAL" GREP="$GREP" \
+DASHBOARD_KEY="$DASHBOARD_KEY" RUN_ID="$RUN_ID" ENVIRONMENT="$ENVIRONMENT" SCOPE="$SCOPE" PARTIAL="$PARTIAL" GREP="$GREP" \
 STARTED="$STARTED" FINISHED="$FINISHED" PW_EXIT="$PW_EXIT" PROBLEMS="$PROBLEMS" \
 PRE_OK="$PRE_OK" PRE_CODE="$PRE_CODE" PRE_ERR="$PRE_ERR" SECRET_KEYS="$SECRET_KEYS" \
 M_BASE_URL="${BASE_URL:-}" M_TENANT="${DIGIT_TENANT:-}" M_SLUG="${IDENTITY_TEST_TENANT_SLUG:-}" \
@@ -138,15 +143,13 @@ node -e '
   const e = process.env;
   const on = v => /^(1|true|yes|on)$/i.test((v || "").trim());
   const source = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "x";
-  const sourceKey = source.kind === "product" ? `product-${slug(source.ref)}` : slug(source.branch);
   const meta = {
     runId: e.RUN_ID,
     environment: e.ENVIRONMENT,
     scope: e.SCOPE,
     grep: e.GREP || null,
     partial: e.PARTIAL === "true",
-    dashboardKey: `${sourceKey}/${e.ENVIRONMENT}`,
+    dashboardKey: e.DASHBOARD_KEY,
     source,
     target: { baseUrl: e.M_BASE_URL || null, tenant: e.M_TENANT || null, workspaceSlug: e.M_SLUG || null },
     recording: { screenshots: on(e.M_SCREENSHOTS), video: on(e.M_VIDEO), traces: on(e.M_TRACES) },

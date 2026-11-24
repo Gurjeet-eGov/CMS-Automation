@@ -1,14 +1,14 @@
 name: Integration tests
-# Each run's title says where it ran and what: "Integration tests · Nai Pepea · smoke".
-run-name: Integration tests · ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }} · ${{ inputs.scope || 'full' }}
+# Each run's title says branch · environment · scope, e.g. "master · Nai Pepea · smoke".
+run-name: ${{ github.event_name == 'schedule' && (vars.SCHEDULED_BRANCH || 'master') || github.ref_name }} · ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }} · ${{ inputs.scope || 'full' }}
 
 # Runs the CMS/PGR Playwright suite against one deployment, publishes full runs
-# to the GitHub Pages dashboard, and raises the alarm (red run + Slack) only when
-# something unusual happened. New to GitHub Actions? Start with docs/GUIDE.md.
+# to the GitHub Pages dashboard, and turns the run red only when something
+# unusual happened. New to GitHub Actions? Start with docs/GUIDE.md.
 #
 # To run: Actions → Integration tests → Run workflow, then pick
-#   - the branch ("Use workflow from": master, or an implementation branch
-#     impl/<name>) — that branch's suite runs;
+#   - the branch ("Use workflow from": master, or a deployment's branch such as
+#     digit-3.0-naipepea) — that branch's suite runs;
 #   - the environment: a GitHub Environment (Settings → Environments) holding
 #     two secrets, each a whole file pasted once: CONFIG_ENV (the config.env:
 #     address, tenant, workspace slug…) and SECRETS_ENV (the secrets.env:
@@ -55,11 +55,6 @@ concurrency:
 env:
   ENVIRONMENT: ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }}
   SCOPE: ${{ inputs.scope || 'full' }}
-  # Always the suite on the chosen branch (the product's own suite reaches the
-  # branches through the Sync product suite workflow).
-  SUITE_SOURCE: this-branch
-  PRODUCT_REF: develop
-  PRODUCT_REPO: ${{ vars.PRODUCT_REPO || 'egovernments/Citizen-Complaint-Resolution-System' }}
   # Scheduled runs check out SCHEDULED_BRANCH; manual runs use the branch picked in the form.
   CHECKOUT_REF: ${{ github.event_name == 'schedule' && (vars.SCHEDULED_BRANCH || 'master') || '' }}
 
@@ -75,7 +70,7 @@ jobs:
     outputs:
       artifact-url: ${{ steps.upload.outputs.artifact-url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.CHECKOUT_REF }}
           persist-credentials: false
@@ -113,9 +108,9 @@ jobs:
           fi
 
       - name: Prepare the suite
-        run: ci/prepare-suite.sh --source "$SUITE_SOURCE" --ref "$PRODUCT_REF"
+        run: ci/prepare-suite.sh
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -146,7 +141,7 @@ jobs:
       - name: Upload results
         id: upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: results-${{ env.ENVIRONMENT }}
           path: .work/out/
@@ -159,7 +154,7 @@ jobs:
       # what Test Run (or any tool) reads to bring a run's results in.
       - name: Upload test results (JUnit)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: .work/out/results.xml
@@ -179,13 +174,13 @@ jobs:
     permissions:
       contents: write # push the dashboard to the gh-pages branch
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.CHECKOUT_REF }}
           persist-credentials: false
 
       - name: Download results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: results-${{ env.ENVIRONMENT }}
@@ -202,19 +197,16 @@ jobs:
           fi
           if [[ -f "$meta" ]]; then
             echo "has-meta=true" >> "$GITHUB_OUTPUT"
-            echo "source-ref=$(jq -r 'if .source.kind == "product" then .source.sha else "" end' "$meta")" >> "$GITHUB_OUTPUT"
             echo "dashboard-key=$(jq -r .dashboardKey "$meta")" >> "$GITHUB_OUTPUT"
           fi
 
-      # The same suite the tests ran with (for a product run: the same commit),
-      # for build-catalog and the regression comparison.
+      # The same suite the tests ran with, for build-catalog and the regression
+      # comparison.
       - name: Prepare the suite
         if: steps.decide.outputs.has-meta == 'true'
-        env:
-          SOURCE_REF: ${{ steps.decide.outputs.source-ref }}
-        run: ci/prepare-suite.sh --source "$SUITE_SOURCE" --ref "${SOURCE_REF:-$PRODUCT_REF}"
+        run: ci/prepare-suite.sh
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.decide.outputs.publish == 'true'
         with:
           node-version: 22
@@ -241,31 +233,17 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ARTIFACT_URL: ${{ needs.run-tests.outputs.artifact-url }}
           PAGES_URL: ${{ vars.PAGES_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
-          NOTIFY: ${{ vars.NOTIFY || 'problems-only' }} # problems-only, always or never
           PUBLISHED: ${{ steps.publish.outcome == 'success' }}
           DASHBOARD_KEY: ${{ steps.decide.outputs.dashboard-key }}
         run: |
-          args=(--out .work/out --suite .work/suite --notify "$NOTIFY")
+          args=(--out .work/out --suite .work/suite)
           if [[ "$PUBLISHED" == "true" ]]; then
             args+=(--published --catalog ".work/site/$DASHBOARD_KEY/catalog.json")
           fi
           node ci/summarize.mjs "${args[@]}"
 
-      - name: Send to Slack
-        if: steps.summary.outputs.notify == 'true'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
-            echo "No SLACK_WEBHOOK_URL secret yet: skipping Slack (docs/GUIDE.md §2, step 3)."
-            exit 0
-          fi
-          curl -sS --fail-with-body --max-time 30 -X POST -H 'Content-Type: application/json' \
-            --data @.work/slack-payload.json "$SLACK_WEBHOOK_URL" \
-            || echo "::warning title=Slack::Slack did not accept the message (is the webhook URL still valid?)"
-
       # Red only when something unusual happened. That also makes GitHub email
-      # you (Settings → Notifications → Actions), on top of Slack.
+      # you (Settings → Notifications → Actions).
       - name: Verdict
         env:
           ALERT: ${{ steps.summary.outputs.alert }}

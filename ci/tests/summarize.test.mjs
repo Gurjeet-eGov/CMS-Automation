@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluate, outcomes, renderMarkdown, slackPayload, shouldNotify, links } from '../summarize.mjs';
+import { evaluate, outcomes, renderMarkdown, links } from '../summarize.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { analyzeRun } = await import(path.join(here, '../../tests/integration-tests/scripts/regression-alert.mjs'));
@@ -171,24 +171,6 @@ test('full run that was not published: says so, and alerts', () => {
   const r = report([['a.spec.ts', 1, 'x', 'passed']]);
   const res = evaluate({ meta: meta(), report: r, catalog: null, analyze: analyzeRun, published: false });
   assert.deepEqual(res.events.map(e => e.kind), ['not-published']);
-});
-
-test('notify modes', () => {
-  assert.equal(shouldNotify({ alert: false }, 'problems-only'), false);
-  assert.equal(shouldNotify({ alert: true }, 'problems-only'), true);
-  assert.equal(shouldNotify({ alert: false }, 'always'), true);
-  assert.equal(shouldNotify({ alert: true }, 'never'), false);
-});
-
-test('Slack payload stays inside Block Kit limits and escapes markup', () => {
-  const many = Array.from({ length: 60 }, (_, i) => [`smoke/t${i}.spec.ts`, i + 1, `<b>test ${i}</b> & more`, 'failed', 'smoke']);
-  const res = evaluate({ meta: meta({ scope: 'smoke', partial: true }), report: report(many) });
-  const p = slackPayload(res, { run: 'https://github.com/run/1', dashboard: '', report: '', artifact: '' });
-  assert.ok(p.blocks[0].text.text.length <= 150);
-  for (const b of p.blocks) if (b.text?.type === 'mrkdwn') assert.ok(b.text.text.length <= 3000);
-  const body = JSON.stringify(p);
-  assert.ok(!body.includes('<b>'));
-  assert.match(body, /and 52 more/);
 });
 
 test('run summary says which recordings were on: all off by default', () => {

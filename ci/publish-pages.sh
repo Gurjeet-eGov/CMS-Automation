@@ -10,14 +10,15 @@
 # Env: REPORTS_KEPT  runs that keep their full Playwright report (default 5);
 #                    older runs stay in the history with results only.
 #
-# Site layout (one dashboard per suite source × environment, each with its own
-# history, so a product-suite run never reads as a regression of master's):
+# Site layout (one dashboard per branch × environment, each with its own
+# history, so a run on one branch never reads as a regression of another's):
 #   <site>/index.html            landing page (ci/site-index.html)
 #   <site>/dashboards.json       what the landing page lists
-#   <site>/<source>/<env>/       the suite's own dashboard/ app + catalog.json,
+#   <site>/<branch>/<env>/       the suite's own dashboard/ app + catalog.json,
+#                                about.json (the real branch and environment names),
 #                                history.json, runs/<runId>/{playwright-report,
 #                                test-results, report.json}
-#   e.g. master/naipepea/, impl-bomet/bomet/, product-develop/naipepea/
+#   e.g. master/nai-pepea/, digit-3.0-naipepea/nai-pepea/ (ci/dashboard-key.mjs)
 #
 # Mirrors runner/run-cycle.sh's catalog + publish + prune, which is how the
 # deployment box has always published this dashboard.
@@ -39,12 +40,23 @@ KEY="$(meta m.dashboardKey)"
 LABEL="$(meta m.source.label)"
 SHA="$(meta m.source.sha)"
 TARGET="$(meta m.target.baseUrl)"
-[[ "$KEY" =~ ^[a-z0-9._-]+/[a-z0-9_]+$ ]] || { echo "[publish] unexpected dashboard key: $KEY" >&2; exit 2; }
+# <branch>/<environment> as ci/dashboard-key.mjs makes it (its KEY_PATTERN): plain
+# folder names only, so a run can never write outside its own folder.
+KEY_RE='^[a-z0-9_]([a-z0-9._-]*[a-z0-9_])?/[a-z0-9_]([a-z0-9._-]*[a-z0-9_])?$'
+[[ "$KEY" =~ $KEY_RE ]] || { echo "[publish] unexpected dashboard key: $KEY" >&2; exit 2; }
 
 DASH="$SITE/$KEY"
 RUN_DIR="$DASH/runs/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "[publish] $KEY ← run $RUN_ID"
+
+# The dashboard's real names: the folder is nai-pepea, the landing page says
+# "Nai Pepea" (ci/build-site-index.mjs reads this).
+node -e '
+  const m = require(process.argv[1]);
+  const about = { environment: m.environment || null, branch: (m.source && m.source.branch) || null };
+  require("fs").writeFileSync(process.argv[2], JSON.stringify(about, null, 2) + "\n");
+' "$OUT/run-meta.json" "$DASH/about.json"
 
 # 1. The run's own folder: what the dashboard's per-run and per-test links open.
 cp -f "$OUT/report.json" "$RUN_DIR/"
