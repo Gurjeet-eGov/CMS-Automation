@@ -12,7 +12,8 @@
 #   citizen | employee | admin | lifecycle   that folder under tests/
 #   full           everything (the only scope that feeds the dashboard history)
 #
-# Reads (all optional): ENV_SECRETS, INPUT_BASE_URL, INPUT_TENANT_SLUG,
+# Reads (all optional): ENV_CONFIG and ENV_SECRETS (on GitHub: the chosen
+# environment's CONFIG_ENV and SECRETS_ENV), INPUT_BASE_URL, INPUT_TENANT_SLUG,
 # INPUT_DIGIT_TENANT (see ci/load-env.sh); GREP; RECORD_SCREENSHOTS,
 # RECORD_VIDEO, RECORD_TRACES;
 # PW_GLOBAL_TIMEOUT_MS (default 5400000 = 90 min).
@@ -84,8 +85,8 @@ if ! source "$ROOT/ci/load-env.sh" "$ENVIRONMENT"; then
     [[ -n "$p" ]] && echo "::error title=Configuration::$p" && echo "[run] cannot start: $p" >&2
   done
 fi
-# Each secret is exported on its own now; the raw block needn't reach Playwright.
-unset ENV_SECRETS
+# Each setting is exported on its own now; the raw blocks needn't reach Playwright.
+unset ENV_SECRETS ENV_CONFIG
 
 # Preflight: is the deployment reachable at all? An unreachable host would
 # otherwise surface as dozens of setup timeouts.
