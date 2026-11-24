@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 /**
- * summarize.mjs — turn one run's results into a verdict, a readable summary and
- * a Slack message.
+ * summarize.mjs — turn one run's results into a verdict and a readable summary.
  *
  *   node ci/summarize.mjs --out .work/out [--catalog <dashboard>/catalog.json]
- *                         [--suite .work/suite] [--published] [--notify problems-only|always|never]
+ *                         [--suite .work/suite] [--published]
  *
  * Inputs
  *   <out>/run-meta.json   written by ci/run-suite.sh (missing = the run job broke)
@@ -14,14 +13,13 @@
  *   --suite               the prepared suite, for scripts/regression-alert.mjs, whose
  *                         analyzeRun() decides regressed / now skipped / stopped / fixed,
  *                         exactly as the mails from the deployment box do
- *   env RUN_URL, ARTIFACT_URL, PAGES_URL  links shown in the summary and in Slack
+ *   env RUN_URL, ARTIFACT_URL, PAGES_URL  links shown in the summary
  *
  * Outputs
  *   $GITHUB_STEP_SUMMARY (or stdout)  the run summary, in Markdown
- *   .work/slack-payload.json          a Slack incoming-webhook message
- *   $GITHUB_OUTPUT                    alert=true|false, notify=true|false, headline=…
+ *   $GITHUB_OUTPUT                    alert=true|false, headline=…
  *
- * "Unusual" (alert=true, the job goes red, Slack is told) means any of:
+ * "Unusual" (alert=true, the job goes red) means any of:
  *   config-missing  the run couldn't start: a required setting is missing
  *   unreachable     the deployment didn't answer
  *   runner-error    the run job broke before it could record anything
@@ -202,13 +200,14 @@ export function renderMarkdown(result, l) {
     const src = meta.source || {};
     out.push('| | |', '|---|---|');
     out.push(`| Environment | **${meta.environment}** — ${meta.target?.baseUrl || '?'} (tenant \`${meta.target?.tenant || '?'}\`, workspace \`${meta.target?.workspaceSlug || '?'}\`) |`);
-    out.push(`| Suite | ${src.kind === 'product' ? `product repo \`${src.repo}\` @ \`${src.ref}\`` : `this repo, branch \`${src.branch}\``} — commit \`${(src.sha || '').slice(0, 9)}\` |`);
+    out.push(`| Suite | this repo, branch \`${src.branch}\` — commit \`${(src.sha || '').slice(0, 9)}\` |`);
     out.push(`| Scope | ${meta.scope}${meta.grep ? ` · grep \`${esc(meta.grep)}\`` : ''}${meta.partial ? ' (partial run: not added to the dashboard history)' : ''} |`);
     out.push(`| Run id | \`${meta.runId}\` ${duration(meta) ? `· ${duration(meta)}` : ''} |`);
     if (counts.total) {
       out.push(`| Result | ${counts.passed} passed · ${counts.failed + counts.timedOut} failed · ${counts.skipped} skipped${counts.notRun ? ` · ${counts.notRun} did not run` : ''}${counts.interrupted ? ` · ${counts.interrupted} interrupted` : ''}${counts.flaky ? ` · ${counts.flaky} flaky` : ''} — ${counts.total} total |`);
     }
-    out.push(`| Recording | screenshots of failures · video ${meta.recording?.video ? 'on (failures)' : 'off'} · traces ${meta.recording?.traces ? 'on (failures)' : 'off'} |`);
+    const rec = on => (on ? 'on (failures)' : 'off');
+    out.push(`| Recording | screenshots ${rec(meta.recording?.screenshots)} · video ${rec(meta.recording?.video)} · traces ${rec(meta.recording?.traces)} |`);
     if (meta.secretKeys) out.push(`| Secrets used | ${meta.secretKeys.length ? meta.secretKeys.map(k => `\`${k}\``).join(' ') : 'none'} |`);
     out.push('');
   }
@@ -247,7 +246,7 @@ export function renderMarkdown(result, l) {
   const linkLines = [];
   if (l.dashboard) linkLines.push(`- Dashboard: ${l.dashboard}${meta?.partial ? ' (full runs only)' : ''}`);
   if (l.report) linkLines.push(`- This run's Playwright report: ${l.report}`);
-  if (l.artifact) linkLines.push(`- Download this run's results (report, screenshots): ${l.artifact} — open with \`npx playwright show-report playwright-report\``);
+  if (l.artifact) linkLines.push(`- Download this run's results (HTML report and report.json): ${l.artifact} — open with \`npx playwright show-report playwright-report\``);
   if (linkLines.length) out.push('### Links', '', ...linkLines, '');
   if (l.dashboard && comparison?.state === 'baseline') {
     out.push('> First published run for this dashboard. If the dashboard link shows a 404, switch GitHub Pages on (docs/GUIDE.md §2, step 6).', '');
@@ -255,63 +254,20 @@ export function renderMarkdown(result, l) {
   return `${out.join('\n')}\n`;
 }
 
-/** Slack incoming-webhook payload (Block Kit, with a plain-text fallback). */
-export function slackPayload(result, l) {
-  const { meta, counts, events } = result;
-  const slackEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const blocks = [
-    { type: 'header', text: { type: 'plain_text', text: `${result.alert ? '⚠️' : '✅'} CCRS tests — ${result.headline}`.slice(0, 150) } },
-  ];
-  if (meta) {
-    const src = meta.source || {};
-    blocks.push({
-      type: 'section',
-      fields: [
-        { type: 'mrkdwn', text: `*Environment*\n${slackEsc(meta.environment)} — ${slackEsc(meta.target?.baseUrl || '?')}` },
-        { type: 'mrkdwn', text: `*Suite*\n${slackEsc(src.kind === 'product' ? `product @ ${src.ref}` : src.branch || '?')} (${slackEsc((src.sha || '').slice(0, 9))})` },
-        { type: 'mrkdwn', text: `*Scope*\n${slackEsc(meta.scope)}${meta.grep ? ` · ${slackEsc(meta.grep)}` : ''}` },
-        { type: 'mrkdwn', text: `*Result*\n${counts.total ? `${counts.passed} passed · ${counts.failed + counts.timedOut} failed · ${counts.skipped} skipped` : 'no results'}` },
-      ],
-    });
-  }
-  for (const e of events.slice(0, 6)) {
-    let text = `*${slackEsc(e.title)}*`;
-    if (e.detail) text += `\n${slackEsc(e.detail)}`;
-    for (const it of e.items.slice(0, 8)) text += `\n• ${slackEsc(it.text)}${it.error ? `\n    _${slackEsc(it.error.slice(0, 160))}_` : ''}`;
-    if (e.items.length > 8) text += `\n… and ${e.items.length - 8} more`;
-    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: text.slice(0, 2900) } });
-  }
-  const linkText = [
-    l.run && `<${l.run}|Run summary>`,
-    l.report && `<${l.report}|Playwright report>`,
-    l.dashboard && `<${l.dashboard}|Dashboard>`,
-  ].filter(Boolean).join('  ·  ');
-  if (linkText) blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: linkText }] });
-  return { text: `CCRS tests — ${result.headline}`, blocks };
-}
-
-export function shouldNotify(result, mode = 'problems-only') {
-  if (mode === 'never') return false;
-  if (mode === 'always') return true;
-  return result.alert;
-}
-
 function readJson(p) {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
 }
 
 function parseArgs(argv) {
-  const o = { out: '.work/out', catalog: null, suite: '.work/suite', published: false, notify: 'problems-only' };
+  const o = { out: '.work/out', catalog: null, suite: '.work/suite', published: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--out') o.out = argv[++i];
     else if (a === '--catalog') o.catalog = argv[++i];
     else if (a === '--suite') o.suite = argv[++i];
     else if (a === '--published') o.published = true;
-    else if (a === '--notify') o.notify = argv[++i];
     else throw new Error(`unknown argument: ${a}`);
   }
-  if (!['problems-only', 'always', 'never'].includes(o.notify)) o.notify = 'problems-only';
   return o;
 }
 
@@ -333,14 +289,11 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
   else process.stdout.write(md);
 
-  const payloadPath = path.resolve(opts.out, '..', 'slack-payload.json');
-  fs.writeFileSync(payloadPath, JSON.stringify(slackPayload(result, l), null, 2));
-  const notify = shouldNotify(result, opts.notify);
   if (process.env.GITHUB_OUTPUT) {
     const headline = result.headline.replace(/[\r\n]+/g, ' ');
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `alert=${result.alert}\nnotify=${notify}\nheadline=${headline}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `alert=${result.alert}\nheadline=${headline}\n`);
   }
-  console.error(`[summarize] ${result.headline} (alert=${result.alert}, notify=${notify})`);
+  console.error(`[summarize] ${result.headline} (alert=${result.alert})`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

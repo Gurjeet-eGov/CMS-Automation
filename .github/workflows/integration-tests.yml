@@ -1,56 +1,38 @@
 name: Integration tests
+# Each run's title says branch · environment · scope, e.g. "master · Nai Pepea · smoke".
+run-name: ${{ github.event_name == 'schedule' && (vars.SCHEDULED_BRANCH || 'master') || github.ref_name }} · ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }} · ${{ inputs.scope || 'full' }}
 
 # Runs the CMS/PGR Playwright suite against one deployment, publishes full runs
-# to the GitHub Pages dashboard, and raises the alarm (red run + Slack) only when
-# something unusual happened. New to GitHub Actions? Start with docs/GUIDE.md.
+# to the GitHub Pages dashboard, and turns the run red only when something
+# unusual happened. New to GitHub Actions? Start with docs/GUIDE.md.
 #
-# Which suite runs: the branch you pick in "Use workflow from" (master, or an
-# implementation branch impl/<name>), or, with suite_source = product, the
-# product repo's suite at product_ref.
+# To run: Actions → Integration tests → Run workflow, then pick
+#   - the branch ("Use workflow from": master, or a deployment's branch such as
+#     digit-3.0-naipepea) — that branch's suite runs;
+#   - the environment: a GitHub Environment (Settings → Environments) holding
+#     two secrets, each a whole file pasted once: CONFIG_ENV (the config.env:
+#     address, tenant, workspace slug…) and SECRETS_ENV (the secrets.env:
+#     logins and passwords). The dropdown lists them by itself;
+#   - optionally scope (default full) and grep.
+# An environment missing one of its two secrets stops the run, naming it.
+# docs/GUIDE.md §2 shows how to set an environment up.
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Deployment to test (folders under environments/)
-        type: choice
-        options: [naipepea, bomet, custom]
-        default: naipepea
+        description: Deployment to test — a GitHub Environment holding CONFIG_ENV and SECRETS_ENV
+        type: environment
+        required: true
       scope:
-        description: Which tests (profile-only = read-only check of the deployment; only full runs go on the dashboard)
+        description: Which tests (full = everything, and the only scope that goes on the dashboard; profile-only = read-only check of the deployment)
         type: choice
-        options: [profile-only, smoke, api, smoke+api, citizen, employee, admin, lifecycle, full]
-        default: smoke
+        options: [full, profile-only, smoke, api, smoke+api, citizen, employee, admin, lifecycle]
+        default: full
       grep:
         description: Optional — only tests whose title or tags match, e.g. @area:pgr
         type: string
         required: false
-      suite_source:
-        description: this-branch = the suite on the branch above; product = the product repo's own suite
-        type: choice
-        options: [this-branch, product]
-        default: this-branch
-      product_ref:
-        description: With suite_source = product — branch, tag or commit of the product repo
-        type: string
-        default: develop
-      base_url:
-        description: custom (or to override) — deployment URL, e.g. https://example.digit.org
-        type: string
-        required: false
-      tenant_slug:
-        description: custom (or to override) — workspace slug, the /<slug>/digit-ui/ part of the URL
-        type: string
-        required: false
-      digit_tenant:
-        description: custom (or to override) — DIGIT tenant id, e.g. ke or mz.maputo
-        type: string
-        required: false
-      notify:
-        description: Slack message — only when something unusual happened, always, or never
-        type: choice
-        options: [problems-only, always, never]
-        default: problems-only
 
   # ── Scheduled runs (off for now) ──────────────────────────────────────────
   # To run automatically, uncomment the two lines below and set the repository
@@ -73,9 +55,6 @@ concurrency:
 env:
   ENVIRONMENT: ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }}
   SCOPE: ${{ inputs.scope || 'full' }}
-  SUITE_SOURCE: ${{ inputs.suite_source || 'this-branch' }}
-  PRODUCT_REF: ${{ inputs.product_ref || 'develop' }}
-  PRODUCT_REPO: ${{ vars.PRODUCT_REPO || 'egovernments/Citizen-Complaint-Resolution-System' }}
   # Scheduled runs check out SCHEDULED_BRANCH; manual runs use the branch picked in the form.
   CHECKOUT_REF: ${{ github.event_name == 'schedule' && (vars.SCHEDULED_BRANCH || 'master') || '' }}
 
@@ -86,18 +65,52 @@ jobs:
     # 1.59 can't install Chromium. Move on once the suite's Playwright supports it.
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    # The chosen GitHub Environment: its CONFIG_ENV and SECRETS_ENV secrets.
+    environment: ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }}
     outputs:
       artifact-url: ${{ steps.upload.outputs.artifact-url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.CHECKOUT_REF }}
           persist-credentials: false
 
-      - name: Prepare the suite
-        run: ci/prepare-suite.sh --source "$SUITE_SOURCE" --ref "$PRODUCT_REF"
+      # Stop at once, naming what is missing, rather than 10 minutes in.
+      # Until an environment has its own two secrets, the old setup still works:
+      # environments/<name>/config.env in the repo, and the SECRETS_<NAME>
+      # repository secret.
+      - name: Check the environment's secrets
+        env:
+          HAS_CONFIG: ${{ secrets.CONFIG_ENV != '' }}
+          HAS_SECRETS: ${{ secrets.SECRETS_ENV != '' }}
+          HAS_OLD_SECRETS: ${{ secrets[format('SECRETS_{0}', inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea')] != '' }}
+        run: |
+          missing=()
+          if [[ "$HAS_CONFIG" != "true" ]]; then
+            if [[ -f "environments/$ENVIRONMENT/config.env" ]]; then
+              echo "::notice title=Old setup::No CONFIG_ENV in the $ENVIRONMENT environment yet: using environments/$ENVIRONMENT/config.env from the repo. Paste it into CONFIG_ENV (docs/GUIDE.md §2)."
+            else
+              missing+=(CONFIG_ENV)
+            fi
+          fi
+          if [[ "$HAS_SECRETS" != "true" ]]; then
+            if [[ "$HAS_OLD_SECRETS" == "true" ]]; then
+              echo "::notice title=Old setup::No SECRETS_ENV in the $ENVIRONMENT environment yet: using the old repository secret. Paste your secrets.env into SECRETS_ENV (docs/GUIDE.md §2)."
+            else
+              missing+=(SECRETS_ENV)
+            fi
+          fi
+          if (( ${#missing[@]} )); then
+            for m in "${missing[@]}"; do
+              echo "::error title=Missing secret::$m is missing in the $ENVIRONMENT environment's secrets"
+            done
+            exit 1
+          fi
 
-      - uses: actions/setup-node@v4
+      - name: Prepare the suite
+        run: ci/prepare-suite.sh
+
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -111,13 +124,15 @@ jobs:
 
       - name: Run the tests
         env:
-          # The environment's passwords: one multi-line repository secret per
-          # environment, named SECRETS_<ENVIRONMENT> (docs/GUIDE.md §2).
-          ENV_SECRETS: ${{ secrets[format('SECRETS_{0}', inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea')] }}
-          INPUT_BASE_URL: ${{ inputs.base_url }}
-          INPUT_TENANT_SLUG: ${{ inputs.tenant_slug }}
-          INPUT_DIGIT_TENANT: ${{ inputs.digit_tenant }}
+          # The environment's two pasted files (docs/GUIDE.md §2). Old setup:
+          # the SECRETS_<NAME> repository secret, and the config.env in the repo
+          # (used when ENV_CONFIG is empty).
+          ENV_CONFIG: ${{ secrets.CONFIG_ENV }}
+          ENV_CONFIG_NAME: the CONFIG_ENV secret of the ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }} environment
+          ENV_SECRETS: ${{ secrets.SECRETS_ENV || secrets[format('SECRETS_{0}', inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea')] }}
+          ENV_SECRETS_NAME: ${{ secrets.SECRETS_ENV != '' && 'the SECRETS_ENV secret' || 'the old SECRETS_<NAME> repository secret' }} of the ${{ inputs.environment || vars.SCHEDULED_ENVIRONMENT || 'naipepea' }} environment
           GREP: ${{ inputs.grep }}
+          RECORD_SCREENSHOTS: ${{ vars.RECORD_SCREENSHOTS }}
           RECORD_VIDEO: ${{ vars.RECORD_VIDEO }}
           RECORD_TRACES: ${{ vars.RECORD_TRACES }}
           PW_GLOBAL_TIMEOUT_MS: ${{ vars.PW_GLOBAL_TIMEOUT_MS || '5400000' }}
@@ -126,13 +141,26 @@ jobs:
       - name: Upload results
         id: upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: results-${{ env.ENVIRONMENT }}
           path: .work/out/
-          retention-days: 14
+          retention-days: 90 # GitHub's longest for a public repo
           overwrite: true
           include-hidden-files: true # the results sit under .work/
+          if-no-files-found: warn
+
+      # The results alone, as JUnit XML, under one name for every environment:
+      # what Test Run (or any tool) reads to bring a run's results in.
+      - name: Upload test results (JUnit)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: .work/out/results.xml
+          retention-days: 90
+          overwrite: true
+          include-hidden-files: true
           if-no-files-found: warn
 
   report:
@@ -146,13 +174,13 @@ jobs:
     permissions:
       contents: write # push the dashboard to the gh-pages branch
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.CHECKOUT_REF }}
           persist-credentials: false
 
       - name: Download results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: results-${{ env.ENVIRONMENT }}
@@ -169,19 +197,16 @@ jobs:
           fi
           if [[ -f "$meta" ]]; then
             echo "has-meta=true" >> "$GITHUB_OUTPUT"
-            echo "source-ref=$(jq -r 'if .source.kind == "product" then .source.sha else "" end' "$meta")" >> "$GITHUB_OUTPUT"
             echo "dashboard-key=$(jq -r .dashboardKey "$meta")" >> "$GITHUB_OUTPUT"
           fi
 
-      # The same suite the tests ran with (for a product run: the same commit),
-      # for build-catalog and the regression comparison.
+      # The same suite the tests ran with, for build-catalog and the regression
+      # comparison.
       - name: Prepare the suite
         if: steps.decide.outputs.has-meta == 'true'
-        env:
-          SOURCE_REF: ${{ steps.decide.outputs.source-ref }}
-        run: ci/prepare-suite.sh --source "$SUITE_SOURCE" --ref "${SOURCE_REF:-$PRODUCT_REF}"
+        run: ci/prepare-suite.sh
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.decide.outputs.publish == 'true'
         with:
           node-version: 22
@@ -208,31 +233,17 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ARTIFACT_URL: ${{ needs.run-tests.outputs.artifact-url }}
           PAGES_URL: ${{ vars.PAGES_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
-          NOTIFY: ${{ inputs.notify || 'problems-only' }}
           PUBLISHED: ${{ steps.publish.outcome == 'success' }}
           DASHBOARD_KEY: ${{ steps.decide.outputs.dashboard-key }}
         run: |
-          args=(--out .work/out --suite .work/suite --notify "$NOTIFY")
+          args=(--out .work/out --suite .work/suite)
           if [[ "$PUBLISHED" == "true" ]]; then
             args+=(--published --catalog ".work/site/$DASHBOARD_KEY/catalog.json")
           fi
           node ci/summarize.mjs "${args[@]}"
 
-      - name: Send to Slack
-        if: steps.summary.outputs.notify == 'true'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
-            echo "No SLACK_WEBHOOK_URL secret yet: skipping Slack (docs/GUIDE.md §2, step 3)."
-            exit 0
-          fi
-          curl -sS --fail-with-body --max-time 30 -X POST -H 'Content-Type: application/json' \
-            --data @.work/slack-payload.json "$SLACK_WEBHOOK_URL" \
-            || echo "::warning title=Slack::Slack did not accept the message (is the webhook URL still valid?)"
-
       # Red only when something unusual happened. That also makes GitHub email
-      # you (Settings → Notifications → Actions), on top of Slack.
+      # you (Settings → Notifications → Actions).
       - name: Verdict
         env:
           ALERT: ${{ steps.summary.outputs.alert }}
