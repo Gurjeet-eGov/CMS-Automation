@@ -15,8 +15,8 @@ product repo (egovernments) ──"Sync product suite" PR──▶ master ──
 - **`tests/integration-tests/`** is the suite.
   - On `master` it's the shared baseline, brought in from the product repo and kept current through reviewed sync PRs.
   - On an `impl/<name>` branch it's that implementation's own version.
-- **`environments/<name>/`** holds one deployment's public settings (`config.env`) and the list of keys its `SECRETS_<NAME>` secret must hold.
-  - Shipped environments: `naipepea` (default), `bomet` (needs its workspace slug first) and `custom` (described per run).
+- **Each deployment is a GitHub Environment** (Settings → Environments) holding two secrets, each a whole file pasted once: `CONFIG_ENV` (config.env) and `SECRETS_ENV` (secrets.env). To run: Actions → Integration tests → pick the branch and the environment (scope and grep are optional).
+- **`environments/<name>/`** holds example configs and the list of secret keys, used for runs on your own machine (`naipepea`, `bomet`, and `custom` as a template).
 - **`ci/`** holds the scripts the workflows call. You can also run them locally with `ci/run-local.sh <environment> [scope]`.
 - **`.github/workflows/`** holds four workflows: `integration-tests`, `sync-product-suite`, `propagate-to-implementations` and `checks`.
 

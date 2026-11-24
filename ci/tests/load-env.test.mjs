@@ -134,3 +134,81 @@ test('environment names must work as secret names', () => {
   });
   assert.match(r.stdout, /rc=1/);
 });
+
+// ── GitHub: the chosen environment's CONFIG_ENV and SECRETS_ENV, each a whole pasted file ──
+
+/** Source load-env.sh for `name` with a bare environment and return stdout and the exit code. */
+function raw(box, name, env) {
+  const r = spawnSync('bash', ['-c', `source "${LOAD_ENV}" "$1"; echo "rc=$? problems=[$CONFIG_PROBLEMS] keys=[$SECRET_KEYS] base=[$BASE_URL]"`, '_', name], {
+    cwd: box.suite, encoding: 'utf8', env: { PATH: process.env.PATH, CI_ROOT: box.root, ...env },
+  });
+  return r.stdout;
+}
+
+test('a pasted CONFIG_ENV wins over the config.env in the repo', () => {
+  const box = sandbox({ config: 'BASE_URL=https://from-repo.test\nDIGIT_TENANT=repo\nIDENTITY_TEST_TENANT_SLUG=repo\n' });
+  const r = load(box, { ENV_CONFIG: GOOD, ENV_SECRETS: 'ADMIN_PASSWORD=x' }, ['BASE_URL', 'DIGIT_TENANT', 'IDENTITY_TEST_TENANT_SLUG']);
+  assert.equal(r.rc, 0, r.problems.join('; '));
+  assert.deepEqual(r.vars, { BASE_URL: 'https://demo.test', DIGIT_TENANT: 'dm', IDENTITY_TEST_TENANT_SLUG: 'dm1' });
+  assert.deepEqual(r.keys, ['ADMIN_PASSWORD'], 'config keys are not listed as secrets');
+});
+
+test('a pasted CONFIG_ENV is read, never run; config values are not masked', () => {
+  const box = sandbox();
+  const marker = path.join(box.root, 'pwned');
+  const out = raw(box, 'demo', {
+    GITHUB_ACTIONS: 'true',
+    ENV_CONFIG: `${GOOD}NOTE=$(touch ${marker})\`touch ${marker}\`\r\n`,
+    ENV_SECRETS: 'ADMIN_PASSWORD=s3cret',
+  });
+  assert.match(out, /rc=0 /, out);
+  assert.equal(fs.existsSync(marker), false, 'a config line was executed');
+  assert.match(out, /^::add-mask::s3cret$/m);
+  assert.doesNotMatch(out, /::add-mask::https:\/\/demo\.test/, 'the address stays readable');
+});
+
+test('UPSTREAM_ENV works from a pasted CONFIG_ENV, but only inside the suite', () => {
+  const box = sandbox({ upstream: 'export BASE_URL=https://upstream.test\nexport DIGIT_TENANT=up\n' });
+  const r = load(box, { ENV_CONFIG: 'UPSTREAM_ENV=deploy/demo.env\nIDENTITY_TEST_TENANT_SLUG=s1\n', ENV_SECRETS: 'A=1' }, ['BASE_URL', 'DIGIT_TENANT']);
+  assert.equal(r.rc, 0, r.problems.join('; '));
+  assert.deepEqual(r.vars, { BASE_URL: 'https://upstream.test', DIGIT_TENANT: 'up' });
+  const outside = load(box, { ENV_CONFIG: `UPSTREAM_ENV=../../etc/hosts\n${GOOD}`, ENV_SECRETS: 'A=1' });
+  assert.equal(outside.rc, 1);
+  assert.match(outside.problems.join('\n'), /names UPSTREAM_ENV=\.\.\/\.\.\/etc\/hosts, but this suite has no such file/);
+});
+
+test('on GitHub, a missing SECRETS_ENV or CONFIG_ENV is named plainly', () => {
+  const box = sandbox();
+  fs.rmSync(path.join(box.root, 'environments', 'demo', 'config.env'));
+  const noSecrets = raw(box, 'demo', { GITHUB_ACTIONS: 'true', ENV_CONFIG: GOOD });
+  assert.match(noSecrets, /SECRETS_ENV is missing in the demo environment's secrets/);
+  const noConfig = raw(box, 'demo', { GITHUB_ACTIONS: 'true', ENV_SECRETS: 'A=1' });
+  assert.match(noConfig, /rc=1 problems=\[CONFIG_ENV is missing in the demo environment's secrets/);
+});
+
+test('a malformed CONFIG_ENV line names the CONFIG_ENV secret', () => {
+  const box = sandbox();
+  const r = load(box, { ENV_CONFIG: `${GOOD}just some words\n`, ENV_CONFIG_NAME: 'the CONFIG_ENV secret of the demo environment', ENV_SECRETS: 'A=1' });
+  assert.equal(r.rc, 1);
+  assert.match(r.problems[0], /line 4 of the CONFIG_ENV secret of the demo environment is not KEY=value/);
+});
+
+test('GitHub Environment names may use spaces, capitals and -, but never reach another folder', () => {
+  const box = sandbox();
+  assert.match(raw(box, 'Nai Pepea', { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=0 /);
+  assert.match(raw(box, 'Net-Two', { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=0 /);
+  for (const bad of ['../demo', 'a/b', '.hidden']) {
+    assert.match(raw(box, bad, { ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' }), /rc=1 problems=\[environment name .* can't contain/, bad);
+  }
+});
+
+test('an environment name with a space still gives a safe expectations file name', () => {
+  const box = sandbox();
+  const dir = path.join(box.root, 'environments', 'Nai Pepea');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'expectations.json'), '{}');
+  const out = spawnSync('bash', ['-c', `source "${LOAD_ENV}" "Nai Pepea" >/dev/null; echo "rc=$? file=[$EXPECTATIONS_FILE]"`], {
+    cwd: box.suite, encoding: 'utf8', env: { PATH: process.env.PATH, CI_ROOT: box.root, ENV_CONFIG: GOOD, ENV_SECRETS: 'A=1' },
+  }).stdout;
+  assert.match(out, /rc=0 file=\[deploy\/expectations\/ci-Nai_Pepea\.json\]/);
+});

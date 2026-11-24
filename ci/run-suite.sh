@@ -12,7 +12,8 @@
 #   citizen | employee | admin | lifecycle   that folder under tests/
 #   full           everything (the only scope that feeds the dashboard history)
 #
-# Reads (all optional): ENV_SECRETS, INPUT_BASE_URL, INPUT_TENANT_SLUG,
+# Reads (all optional): ENV_CONFIG and ENV_SECRETS (on GitHub: the chosen
+# environment's CONFIG_ENV and SECRETS_ENV), INPUT_BASE_URL, INPUT_TENANT_SLUG,
 # INPUT_DIGIT_TENANT (see ci/load-env.sh); GREP; RECORD_SCREENSHOTS,
 # RECORD_VIDEO, RECORD_TRACES;
 # PW_GLOBAL_TIMEOUT_MS (default 5400000 = 90 min).
@@ -23,6 +24,7 @@
 # .work/out/ afterwards:
 #   run-meta.json            what ran, where, and anything that stopped it
 #   report.json              Playwright's JSON report (if it got that far)
+#   results.xml              the same results as JUnit XML, for Test Run (artifact test-results)
 #   playwright-report/       the HTML report
 #   test-results/            failure context (+ screenshots / video / traces when switched on)
 #   deployment-profile.json  what profile-setup discovered (no secrets in it)
@@ -74,7 +76,7 @@ RUN_ID="$(date -u +%Y-%m-%d_%H%M)_${SHA:0:8}"
 
 cd "$SUITE" || exit 2
 # Results from an earlier run in this folder must never pass for this run's.
-rm -rf report.json playwright-report test-results deployment-profile.json
+rm -rf report.json results.xml playwright-report test-results deployment-profile.json
 PROBLEMS=""
 SECRET_KEYS=""
 # shellcheck source=ci/load-env.sh
@@ -84,8 +86,8 @@ if ! source "$ROOT/ci/load-env.sh" "$ENVIRONMENT"; then
     [[ -n "$p" ]] && echo "::error title=Configuration::$p" && echo "[run] cannot start: $p" >&2
   done
 fi
-# Each secret is exported on its own now; the raw block needn't reach Playwright.
-unset ENV_SECRETS
+# Each setting is exported on its own now; the raw blocks needn't reach Playwright.
+unset ENV_SECRETS ENV_CONFIG
 
 # Preflight: is the deployment reachable at all? An unreachable host would
 # otherwise surface as dozens of setup timeouts.
@@ -120,7 +122,7 @@ if [[ -z "$PROBLEMS" && "$PRE_OK" == true ]]; then
 fi
 FINISHED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-for f in report.json playwright-report test-results deployment-profile.json; do
+for f in report.json results.xml playwright-report test-results deployment-profile.json; do
   [[ -e "$f" ]] && cp -R "$f" "$OUT/"
 done
 
