@@ -227,6 +227,29 @@ jobs:
           REPORTS_KEPT: ${{ vars.REPORTS_KEPT || '5' }}
         run: ci/push-pages.sh
 
+      # Where this run's report was published, as one line: Test Run (or any
+      # tool) reads it from the artifact `report-link` to open the run's report.
+      # Only when the dashboard publish worked; partial runs aren't published.
+      - name: Save the report link
+        if: steps.publish.outcome == 'success'
+        env:
+          PAGES_URL: ${{ vars.PAGES_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+          DASHBOARD_KEY: ${{ steps.decide.outputs.dashboard-key }}
+        run: |
+          mkdir -p .work/report-link
+          printf '%s%s/\n' "${PAGES_URL%/}/" "$DASHBOARD_KEY" > .work/report-link/report-url.txt
+          cat .work/report-link/report-url.txt
+
+      - name: Upload the report link
+        if: steps.publish.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-link
+          path: .work/report-link/report-url.txt
+          retention-days: 90
+          include-hidden-files: true
+          if-no-files-found: warn
+
       - name: Summarize
         id: summary
         env:

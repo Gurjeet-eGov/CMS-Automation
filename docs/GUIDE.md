@@ -395,6 +395,8 @@ gh run download <run-id> -n results-naipepea
 
 Next to it, **`test-results`** holds the same results as JUnit XML (`results.xml`), under one name for every environment. It's what Test Run reads to bring a run's results in (see [Connect your test suite to Test Run](https://github.com/Gurjeet-eGov/Claude-Extensions/blob/master/test-run-console/docs/connect-a-suite.md)).
 
+A **full** run that was published to the dashboard also has **`report-link`**: one line, `report-url.txt`, with that run's dashboard address (for example `https://<owner>.github.io/CMS-Automation/digit-3.0-naipepea/nai-pepea/`). Test Run's **↗ Git Report** opens it. Partial runs aren't published, so they have none, and Git Report opens the GitHub run instead.
+
 ### What pass, fail and skip mean in this suite
 
 | Result | Meaning |
