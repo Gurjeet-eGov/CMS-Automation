@@ -156,18 +156,27 @@ test('rate page renders 5 stars + 4 feedback checkboxes', {
 ### 6. Handle real deployment gaps honestly
 
 - If the test hits a known unresolved product bug (not something the test can work around), use `test.fixme(...)` — it counts as an expected failure, not a regression.
-- If a test genuinely cannot run against certain deployments (e.g. requires the new CRS backend), use `test.skip(ROOT_TENANT === 'ke', 'ke PGR submit returns JsonMappingException — deployment bug')`.
+- If a test genuinely cannot run against certain deployments, gate it on what the deployment has, never on a tenant literal. Use a capability from `tests/utils/capabilities.ts`, which reads the discovered profile and the environment's expectations file and skips (or fails, if the capability is declared required) with a reason naming the tenant:
+  ```ts
+  import { requires } from '../utils/capabilities';
+  test('citizen files a complaint …', { tag: [/* … */] }, async ({ page }) => {
+    requires(test, 'pgr.citizenCreate', 'citizen filing wizard');
+    // …
+  });
+  ```
+  For a check no capability covers, read it from the profile or `utils/env.ts` and put the tenant and the evidence in the reason: ``test.skip(!found, `no <thing> on ${TENANT}: <what was searched>`)``.
+- If a product change retires the test on some deployments, follow `WRITING-TESTS.md` §9 (always skip, `Deprecated in <version>: …`, tag `@deprecated:<label>`).
 - Do NOT relax an assertion to hide a real deployment gap. Skip with a clear reason instead.
 
 ### 7. Verify against at least one deployment before committing
 
+Run it against one of the environments under `environments/` (from the repo root):
+
 ```bash
-cd tests/integration-tests
-env BASE_URL=https://subhadev.digitlab.in DIGIT_TENANT=ethiopia ROOT_TENANT=ethiopia ADMIN_USER=ADMIN ADMIN_PASS=eGov@123 TENANT_CODE=ethiopia \
-  npx playwright test --no-deps --project=chromium tests/citizen/<your-new-spec>.spec.ts --reporter=list
+ci/run-local.sh <env> citizen -- tests/citizen/<your-new-spec>.spec.ts
 ```
 
-If you're aiming for deployment portability, also verify against Bomet (`bometfeedbackhub.digit.org / ke`).
+If you're aiming for deployment portability, also run it against a second environment under `environments/`.
 
 ### 8. Commit convention
 

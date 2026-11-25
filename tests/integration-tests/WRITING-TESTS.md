@@ -1,9 +1,11 @@
 # Integration tests — how they work & how to add them
 
 End-to-end Playwright tests that run against a **live DIGIT deployment** (no mocking).
-The same suite must pass on **any** deployment — local Maputo (`mz.maputo`), bomet
-Kenya (`ke`), etc. That "deployment-agnostic" rule is the single most important thing
-to understand before writing a test.
+The same suite must pass on **any** deployment — a DIGIT 3.0 workspace (flat tenant,
+reached at `/<workspace-slug>/digit-ui/…`), local Maputo (`mz.maputo`), bomet Kenya
+(`ke`), etc. That "deployment-agnostic" rule is the single most important thing to
+understand before writing a test. Each deployment is described by an environment folder,
+`environments/<name>/` (see §7).
 
 ---
 
@@ -15,7 +17,7 @@ tests/integration-tests/
   tests/
     citizen/  employee/  admin/   # UI specs, grouped by who uses the screen
     api/  smoke/                   # API-only specs (token-injection auth)
-    keycloak/  lifecycle/  specs/  onboarding/
+    keycloak/  lifecycle/  specs/  onboarding-real/  identity-real/
     fixtures/                      # SETUP projects (run before specs) + auth files
     utils/                         # env, profile, probes, personas, seed, helpers
   scripts/                    # build-catalog.ts (dashboard), tag-tests.ts (tagging)
@@ -33,10 +35,15 @@ dependencies in `playwright.config.ts`), then the spec projects:
    (serviceCode + localityCode + idPrefix), and the resolved **personas** (logs each in,
    records which tenant accepted it). It **hard-asserts** the anti-vacuous-pass guards
    (rows 1, 3, 4, 5, 6 in §3) so an empty stack fails loudly instead of skipping green.
-2. **`setup`** (real UI login at `/configurator/login` as ADMIN → `auth.json`; *skips*
-   if the configurator isn't deployed).
-3. **`api-setup`** (token injection, no UI → `auth-api.json`; used by `api` + `smoke`).
-4. **`citizen-setup`** (one fresh citizen per run → `citizen-fixture.json`).
+2. **`setup`** (configurator sign-in as ADMIN via `utils/configurator-auth.ts`
+   `loginConfigurator`: Keycloak + the Identity BFF, then the configurator context →
+   `auth.json` with the BFF session cookie and the selected DIGIT context; it asserts
+   DIGIT accepts the token).
+3. **`api-setup`** (`utils/auth.ts` `loginViaApi`, signs in through the BFF, no UI →
+   `auth-api.json`; used by `api` + `smoke`).
+4. **`citizen-setup`** (one fresh citizen per run via the BFF OTP flow →
+   `citizen-fixture.json`; the OTP is the fixed `IDENTITY_TEST_OTP_CODE` or is read from
+   `IDENTITY_TEST_OTP_SINK_URL`).
 5. **`lifecycle-setup`** (seeds 3 complaints → `lifecycle-fixtures.json`: one
    non-terminal at `PENDINGFORASSIGNMENT`, one assigned at `PENDINGATLME`, one walked
    ASSIGN→RESOLVE→RATE to `CLOSEDAFTERRESOLUTION` rating=4). Always files as a CITIZEN
@@ -78,7 +85,7 @@ skip, not fail).
 | 9 | PGR id prefix (segment before `-PGR-`) | egov-idgen | falls back to `NCCG` | degrades |
 | 10 | Localization messages for `en_IN` (+ any locale under test), incl. workflow action labels (ESCALATE, …) | localization | label assertions skip/fail | per-spec |
 | 11 | `RejectionReasons`, `Department`, `Designation` masters | MDMS v2 | admin/HRMS specs skip | per-spec |
-| 12 | Citizen self-registration + fixed OTP `123456` | user-service (+ OTP disabled/fixed) | citizen-setup fails | hard-fail (citizen specs) |
+| 12 | Citizen self-registration + an OTP the suite can read (fixed `IDENTITY_TEST_OTP_CODE` or an SMS sink at `IDENTITY_TEST_OTP_SINK_URL`) | Identity BFF + user-service | citizen-setup fails | hard-fail (citizen specs) |
 | 13 | **Optional:** Keycloak realm + OIDC discovery | keycloak | `tests/keycloak/*` self-skip | self-skip |
 
 A deployment's onboarding (XLSX + `deploy.sh`) may not seed all of these — close the
@@ -109,10 +116,12 @@ those into real, portable assertions.
 
 **This extends to workflow *shape*, not just literals** — read a feature's actual
 configuration live rather than assuming one deployment's behaviour:
-- **ESCALATE model** — the canonical workflow wires it as a **self-loop** on
-  `PENDINGATLME` and `PENDINGFORASSIGNMENT`: status stays unchanged while assignment
-  moves to `reportingTo` and the escalation level increments. Treat a forward transition
-  to `PENDINGATSUPERVISOR` as stale deployment configuration, not an alternate model.
+- **ESCALATE model** — depends on the deployment's workflow. Which states offer
+  ESCALATE, which roles may take it and who can act after it differ between
+  implementations, even within DIGIT 3.0. Read the live `BusinessService` instead of
+  assuming one shape; a test that pins one deployment's workflow contract belongs on
+  that deployment's branch (e.g. `tests/api/pgr-escalation.spec.ts` on a deployment
+  branch pins that deployment's escalation states).
 - **Inbox locality sort** — some deployments sort by the raw leaf boundary code, others
   by a coarser bairro/name key, so a spec cannot assume raw-leaf-code order.
 - **Postal / mobile formats, id prefixes, locales** — always from the profile.
@@ -132,6 +141,8 @@ configuration live rather than assuming one deployment's behaviour:
    dashboard, auth, mdms-schema, proxy, keycloak, onboarding, manage-boundaries),
    `@layer:` (ui | api), `@kind:` (happy-path | edge-case | regression | smoke |
    lifecycle | validation). Reference a ticket with `@ccrs:NNN` / `@pr:NNN`.
+   `@deprecated:<label>` (e.g. `@deprecated:digit-3.0`) is a **label**, not a facet:
+   it marks a retired test (§9) and is not coverage.
 3. **Pull deployment values from `env.ts`** (§4) — never hardcode.
 4. **Reuse the helpers** instead of rolling your own:
    - `utils/auth.ts` `getDigitToken`, `loadAuth`; `utils/employee-ui.ts`
@@ -141,9 +152,19 @@ configuration live rather than assuming one deployment's behaviour:
    - `utils/manage/api.ts` `pgrSearch`, `pgrCount`, `mdmsSearch`, `employeeSearch`.
    - `utils/personas.ts` `getPersona`, `resolveSeedPlan` (the exact serviceCode/actor/
      assignee triple PGR will actually accept on this deployment).
+   - Sign-in (DIGIT 3.0): `utils/identity-bff.ts` `surfacePath` (every app URL is
+     `/<slug>/digit-ui/…`), `citizenSignIn`; `utils/citizen-login.ts` `citizenOtpLogin`;
+     `utils/citizen-provision.ts` `provisionFreshCitizen`. The app keeps tokens in
+     **sessionStorage**, not localStorage.
 5. **Skip, don't fail, when a capability or data legitimately isn't present** — with a
    precise reason (`test.skip(!x, 'no ward-scoped CSR on <tenant>: …')`). Reserve a red
    for a real regression. Never let a spec pass by asserting nothing.
+   - A skip reason names the **workspace/tenant and the evidence** (what was looked
+     for, what was found). Never put staff names or logins in it: reasons are published
+     in the report.
+   - In a chain of dependent tests, a skipped step must not make the next test **fail**.
+     Record the skip reason in a shared variable and have the later tests
+     `test.skip(!!reason, reason)` on it.
 6. **Clean up what you create.** Track created records and soft-delete them in
    `afterAll` (`utils/manage/teardown.ts`); use the `PW_` code prefix
    (`utils/manage/codes.ts` `testCode`) so leftovers are identifiable and never collide.
@@ -172,19 +193,42 @@ configuration live rather than assuming one deployment's behaviour:
 - **HRMS `employees/_search` needs `offset=0`** (it 500s without it); its
   `roles=`/`codes=` filters are unreliable — search then filter in code.
 - **`@local-only`-tagged specs** are excluded unless `LOCAL_STACK=1`.
+- **A "nothing shown" check needs proof the page loaded.** `toHaveCount(0)` / an empty
+  row list is green on a page that never rendered. Pair it with a positive control on the
+  same surface (the empty-state block, a header, a known row). Wait helpers such as
+  `utils/employee-ui.ts` `waitForInboxSettled` give up quietly on timeout, so they are
+  not that proof on their own.
+- **No English fallback labels or location literals.** A label that differs per
+  deployment (language pill text, default citizen name) comes from config, e.g.
+  `CITIZEN_LANGUAGE_PILL_TEXT`, `CITIZEN_DEFAULT_NAME` in `utils/env.ts`, set in the
+  environment's `config.env`. Coordinates, ward codes and similar come from the profile or
+  from data the test creates.
 
 ## 7. Running
 
+Each deployment is an **environment**: `environments/<name>/config.env` (committed,
+no secrets) plus a git-ignored `secrets.env` (copy `secrets.example` next to it and fill
+it in). Run from the repo root, the same way CI does:
+
 ```bash
-cd tests/integration-tests
-set -a; source .env; set +a          # deployment target: BASE_URL, DIGIT_TENANT, …
-npx playwright test tests/admin --project=chromium --workers=1
-npx playwright test tests/api   --project=api
+ci/run-local.sh <env> [scope] [--grep <expr>] [-- <playwright args or files>]
+
+ci/run-local.sh <env> profile-only                  # read-only: what does the deployment have?
+ci/run-local.sh <env> smoke
+ci/run-local.sh <env> citizen --grep @area:pgr
+ci/run-local.sh <env> full -- tests/admin/users.spec.ts
 ```
 
-Run **one suite / project at a time** (shared fixtures — §2). The runner
-(`runner/run-cycle.sh`) and dashboard (`scripts/build-catalog.ts`,
-`scripts/tag-tests.ts`) publish results; the dashboard groups by the tags above.
+Scopes: `profile-only`, `smoke`, `api`, `smoke+api`, `citizen`, `employee`, `admin`,
+`lifecycle`, `full`. The script copies the suite to `.work/suite`, runs it with
+`ci/playwright.ci.config.ts` and writes results to **`.work/out`** (`report.json`,
+`results.xml`, `playwright-report/`). CI runs the same scripts from
+`.github/workflows/integration-tests.yml`; screenshots, video and traces are off there
+unless `RECORD_SCREENSHOTS` / `RECORD_VIDEO` / `RECORD_TRACES` are set.
+
+Run **one invocation at a time against a deployment** (shared fixtures — §2). The
+dashboard (`scripts/build-catalog.ts`, `scripts/tag-tests.ts`) groups results by the
+tags above; `ci/publish-pages.sh` publishes full runs per `<branch>/<env>`.
 
 ## 8. Pass / fail / skip — what each means
 
@@ -193,3 +237,49 @@ Run **one suite / project at a time** (shared fixtures — §2). The runner
   catches (keep it red; don't weaken the assertion to go green).
 - **skip** — a capability/data/build feature this deployment legitimately lacks, with a
   precise reason. A skip must never hide a failure.
+
+## 9. Retiring a test
+
+When a product or deployment change makes a test no longer apply, **skip it always and
+say why** rather than deleting it or rewriting it into a different test:
+
+```ts
+test('2. single create — happy path …', {
+  tag: ['@persona:admin', '@area:hrms', '@layer:ui', '@kind:happy-path', '@deprecated:digit-3.0'],
+}, async ({ page }) => {
+  test.skip(true, 'Deprecated in DIGIT 3.0: HRMS refuses an employee without a current ' +
+    'assignment (COMPAT_REFUSED). Covered by "2b. single create with a current assignment …"');
+  …
+});
+```
+
+- The reason starts with `Deprecated in <version or deployment>:`, says **what changed**,
+  and names the replacement (`Covered by "<test title>"`) when there is one. It must be
+  enough for someone on another deployment or branch to decide whether to keep the test
+  skipped or switch it back on for their implementation.
+- Tag it `@deprecated:<label>` (§5). Leave the test body in place, so re-enabling it is
+  one line.
+- Add any **replacement test at the end of the file**. The dashboard keys tests by
+  `file:line:title`, so inserting a test mid-file gives every test below it a new id and
+  resets its history.
+- Examples: `tests/api/pgr-escalation.spec.ts` tests 2 and 14,
+  `tests/admin/employees.spec.ts` test 2, `tests/admin/complaints.spec.ts` test 9,
+  `tests/admin/tenants.spec.ts` test 3.
+
+## 10. Temporary workarounds
+
+A workaround for an **open product bug** must be easy to switch off once the bug is fixed:
+
+1. It sits behind **one environment flag**, off by default, switched on per environment
+   in `environments/<env>/config.env`.
+2. Its code lives in **one helper**, not spread across specs.
+3. It carries a `TEMPORARY … remove once <issue link> is fixed` comment.
+4. It has a row in the table below.
+
+**To revert after the fix:** set the flag to `false` (or remove the line) in the
+environment's `config.env`, re-run the affected tests, and once they pass delete the
+flag, the helper branch and the table row.
+
+| Flag | Issue | Where | How to revert |
+|---|---|---|---|
+| `TENANT_CASE_WORKAROUND` | egovernments/complaint-management-system#84 (the tenant id's case differs between the configurator and the employee UI) | `tests/utils/identity-bff.ts` (`tenantCaseWorkaround`, `sameTenant`), `tests/utils/configurator-auth.ts` (`loginConfigurator` session tenant) | set `TENANT_CASE_WORKAROUND=false` in the environment's `config.env`, re-run, then delete |
