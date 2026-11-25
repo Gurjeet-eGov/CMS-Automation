@@ -1,0 +1,1106 @@
+{
+  "perTest": {
+    "tests/admin/boundary-create.spec.ts:92:creates a root and child with hierarchy-derived relationship fields": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 13701 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 16300 }
+    ],
+    "tests/admin/boundary-hierarchies.spec.ts:120:1. list renders with hierarchy type + levels columns": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2428 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4441 }
+    ],
+    "tests/admin/boundary-hierarchies.spec.ts:150:2. UI create happy path — chain of 2 levels shows up in list + API": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6825 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8638 }
+    ],
+    "tests/admin/boundary-hierarchies.spec.ts:215:3. show page renders levels in chain order": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6166 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7536 }
+    ],
+    "tests/admin/boundary-hierarchies.spec.ts:253:4. duplicate hierarchyType is rejected with DUPLICATE_RECORD": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3454 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4111 }
+    ],
+    "tests/admin/boundary-hierarchies.spec.ts:287:5. validation — empty hierarchyType blocks client-side submit": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1622 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2585 }
+    ],
+    "tests/admin/boundary-hierarchies.spec.ts:316:6. API response shape — BoundaryHierarchy comes back as an array": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3150 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3223 }
+    ],
+    "tests/admin/complaint-form-validators-2026-05-31.spec.ts:67:users + edit + create + validators bidirectional": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 30973 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 33157 }
+    ],
+    "tests/admin/complaint-types.spec.ts:115:1. list renders with Service Code / Name / Department / SLA / Status columns": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2526 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5099 }
+    ],
+    "tests/admin/complaint-types.spec.ts:154:2. create → edit → deactivate round-trip": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9521 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11184 }
+    ],
+    "tests/admin/complaint-types.spec.ts:247:4. department reference filter narrows the list": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 18108 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 22136 }
+    ],
+    "tests/admin/complaints.spec.ts:1061:13. PENDINGFORASSIGNMENT filter returns the expected queue size": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1962 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2728 }
+    ],
+    "tests/admin/complaints.spec.ts:157:1. file complaint — citizen, locality, required landmark": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4605 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6196 }
+    ],
+    "tests/admin/complaints.spec.ts:238:2. edit merges description + workflow ASSIGN in one round-trip": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4328 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6508 }
+    ],
+    "tests/admin/complaints.spec.ts:333:3. workflow dropdown labels are human-readable, not UUIDs": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2815 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4845 }
+    ],
+    "tests/admin/complaints.spec.ts:370:4. source select offers only Web/Mobile/WhatsApp": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3402 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4022 }
+    ],
+    "tests/admin/complaints.spec.ts:404:5. list footer count matches /pgr-services/v2/request/_count": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3212 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4887 }
+    ],
+    "tests/admin/complaints.spec.ts:442:6. status filter fires as an XHR query param": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3627 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4652 }
+    ],
+    "tests/admin/complaints.spec.ts:506:6b. From-date filter fires as a fromDate XHR query param": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3711 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4809 }
+    ],
+    "tests/admin/complaints.spec.ts:575:7. department filter narrows visible rows": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4523 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5462 }
+    ],
+    "tests/admin/complaints.spec.ts:683:8. show page renders address extras and a working geo link": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9447 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4446 }
+    ],
+    "tests/admin/complaints.spec.ts:778:9. mobile-only citizen heuristic shows suffix on Show page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 111 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 86 }
+    ],
+    "tests/admin/complaints.spec.ts:820:10. real pagination — offset-based _search fires with page 2 nav, not client-slice of first 100": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2977 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4469 }
+    ],
+    "tests/admin/complaints.spec.ts:885:11. department column renders the readable department name, not a raw code": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3342 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5222 }
+    ],
+    "tests/admin/complaints.spec.ts:966:12. edit saves description + workflow in a single _update round-trip": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4110 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6082 }
+    ],
+    "tests/admin/configurator-mdms-fixes-2026-04-29.spec.ts:131:ComplaintHierarchy schema declares keywords / order / parentCode (so ComplaintTypeCreate defaults are safe)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 105 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 181 }
+    ],
+    "tests/admin/configurator-mdms-fixes-2026-04-29.spec.ts:162:mdmsCreate REJECTS the same `_isActive` / `id` leak": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 108 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 184 }
+    ],
+    "tests/admin/configurator-mdms-fixes-2026-04-29.spec.ts:37:Department create with only schema-allowed fields SUCCEEDS": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 496 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 425 }
+    ],
+    "tests/admin/configurator-mdms-fixes-2026-04-29.spec.ts:69:Department update with leaked `_isActive` / `_uniqueIdentifier` / `id` is REJECTED by MDMS": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 383 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 615 }
+    ],
+    "tests/admin/configurator-mdms-fixes-2026-04-29.spec.ts:9:Department create REJECTS the legacy `description` field": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 121 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2521 }
+    ],
+    "tests/admin/configurator-rca-round-2.spec.ts:18:#476: hardcoded RETIRED/TERMINATED/RESIGNED floor is gone from the served bundle": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 805 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 1717 }
+    ],
+    "tests/admin/configurator-rca-round-2.spec.ts:35:#483: Gender Types edit renders the active flag as a checkbox, not text": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2503 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4566 }
+    ],
+    "tests/admin/departments.spec.ts:201:2. single create → edit → deactivate round-trip": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6082 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8008 }
+    ],
+    "tests/admin/departments.spec.ts:292:3. bulk import — happy path creates 5 rows": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3583 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6303 }
+    ],
+    "tests/admin/departments.spec.ts:364:4. bulk import — duplicate code rejected client-side": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2531 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3608 }
+    ],
+    "tests/admin/departments.spec.ts:426:5a. Show page renders \"Related\" reverse references (complaint-types + employees)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2621 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4588 }
+    ],
+    "tests/admin/departments.spec.ts:488:5b. deactivation guard probes designation + employee APIs": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3373 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6561 }
+    ],
+    "tests/admin/departments.spec.ts:553:5c. API update round-trip preserves auditDetails on a department": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 373 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 613 }
+    ],
+    "tests/admin/departments.spec.ts:604:6. bulk export round-trip — downloaded xlsx parses": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2419 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4158 }
+    ],
+    "tests/admin/departments.spec.ts:73:1. list renders with header columns and filters narrow to the expected rows": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7559 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12970 }
+    ],
+    "tests/admin/designations.spec.ts:142:2. edit round-trip preserves array shape (add then remove)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7751 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11786 }
+    ],
+    "tests/admin/designations.spec.ts:236:4. department filter narrows list to designations referencing that code": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4776 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7904 }
+    ],
+    "tests/admin/designations.spec.ts:308:5. deactivation guard counts dependent records": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4672 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6569 }
+    ],
+    "tests/admin/designations.spec.ts:359:5a. department chip input dropdown loads options from mdms": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2326 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4086 }
+    ],
+    "tests/admin/designations.spec.ts:389:5b. show page renders department chips for a multi-dept designation": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2488 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4912 }
+    ],
+    "tests/admin/designations.spec.ts:424:5c. API soft-delete (isActive=false) removes row from active list": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3071 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7067 }
+    ],
+    "tests/admin/designations.spec.ts:474:5d. HRMS probe returns assignments.designation for guard counter": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 194 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 598 }
+    ],
+    "tests/admin/designations.spec.ts:514:6. bulk import accepts comma-list department values as array": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2839 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3950 }
+    ],
+    "tests/admin/designations.spec.ts:92:1. create with multi-department persists as a string[]": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2913 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4929 }
+    ],
+    "tests/admin/employee-mobile-validator-447.spec.ts:46:valid mobile clears aria-invalid": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9548 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10555 }
+    ],
+    "tests/admin/employee-mobile-validator-447.spec.ts:62:invalid mobile surfaces help text and aria-invalid": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8686 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 9681 }
+    ],
+    "tests/admin/employee-mobile-validator-447.spec.ts:78:second valid mobile candidate clears aria-invalid — #674 fallback": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9585 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10659 }
+    ],
+    "tests/admin/employees.spec.ts:212:1. list renders; search narrows to the matching row; Status filter partitions the list": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 14935 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 20115 }
+    ],
+    "tests/admin/employees.spec.ts:345:2. single create — happy path derives code + username, employee lands": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 110 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 89 }
+    ],
+    "tests/admin/employees.spec.ts:473:2b. single create with a current assignment (department + designation) — DIGIT 3.0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4919 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6906 }
+    ],
+    "tests/admin/employees.spec.ts:547:3. too-short mobile shows inline validation error": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1629 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2630 }
+    ],
+    "tests/admin/employees.spec.ts:592:4. edit — DOB round-trips as YYYY-MM-DD (not epoch-ms)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 11754 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 13791 }
+    ],
+    "tests/admin/employees.spec.ts:682:4a. edit — add GRO role round-trips without JsonMappingException (CCRS#439)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4963 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7087 }
+    ],
+    "tests/admin/employees.spec.ts:800:5. deactivate — INACTIVE + deactivation reason applied": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6512 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8581 }
+    ],
+    "tests/admin/employees.spec.ts:898:7. bulk import — 3 valid + 2 invalid rows, create 3 lands": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 16609 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 17598 }
+    ],
+    "tests/admin/hardcoding.spec.ts:113:3. complaint create surface addresses only the configured tenant": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2866 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4499 }
+    ],
+    "tests/admin/hardcoding.spec.ts:152:4. localization never falls back to a foreign tenant": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6513 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 9406 }
+    ],
+    "tests/admin/hardcoding.spec.ts:65:2. employee create surface addresses only the configured tenant": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3115 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4779 }
+    ],
+    "tests/admin/localization-modules.spec.ts:107:designation localizations are in rainmaker-common, not rainmaker-common-masters": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 331 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 558 }
+    ],
+    "tests/admin/localization-modules.spec.ts:145:rainmaker-common-masters module has no localization data at all": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 108 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 182 }
+    ],
+    "tests/admin/localization-modules.spec.ts:68:department localizations are in rainmaker-common, not rainmaker-common-masters": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 429 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 730 }
+    ],
+    "tests/admin/localization.spec.ts:145:4. list renders with a usable layout and shows data": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2800 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4345 }
+    ],
+    "tests/admin/localization.spec.ts:186:5. inline edit — UI save round-trips via localizationUpsert + cache-bust": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 11849 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 14645 }
+    ],
+    "tests/admin/localization.spec.ts:278:6. missing locale translation renders em-dash placeholder": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5398 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7445 }
+    ],
+    "tests/admin/localization.spec.ts:328:7. module filter narrows rows to the selected module": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4098 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7674 }
+    ],
+    "tests/admin/localization.spec.ts:47:2. upsert + cache-bust round-trip — value lands after bust, not before": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2094 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3076 }
+    ],
+    "tests/admin/localization.spec.ts:98:3. _upsert rejects same code on different modules in one batch (DUPLICATE_RECORDS)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 105 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 179 }
+    ],
+    "tests/admin/login.spec.ts:17:hosted credential inputs start empty and declare password autocomplete": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4005 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7866 }
+    ],
+    "tests/admin/login.spec.ts:29:Log in starts the password sign-in through identity-bff": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2930 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5750 }
+    ],
+    "tests/admin/login.spec.ts:9:fresh configurator contains no credential or tenant inputs": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1791 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3661 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:120:all chart canvases render": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3557 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 6577 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:153:chart section titles are visible": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3486 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 5255 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:185:sidebar has PGR Dashboard nav link": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3495 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 5204 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:209:KPI values show numbers": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3575 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 5489 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:237:breakdown table with 4 tabs": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3427 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 5483 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:53:route and navigation follow the baked feature flag": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3486 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5644 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:73:dashboard page loads with heading": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3461 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 5444 }
+    ],
+    "tests/admin/pgr-dashboard.spec.ts:94:overview card shows 3 KPI metrics": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 3489 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 5605 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:112:API: active=true & isActive=true returns the tenant employee list": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 397 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 749 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:146:API: workflow business service exposes the 11 PGR states (drives statusMap)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 111 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 189 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:188:API: pgr-services SortBy accepts `sla` but rejects unknown literals like `serviceSla`": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 249 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 400 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:236:Bundle: open-states constant is present in the served JS": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 713 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 1391 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:265:API: rainmaker-pgr en_IN has sentence-cased labels for ESCALATE/ASSIGN/etc": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 109 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 183 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:299:API: ES_COMMON_TAKE_ACTION resolves to \"Take Action\"": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 103 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 179 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:335:API: every COMPLAINT_HIERARCHY.<categoryCode> row is labelled in every advertised locale": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 216 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 368 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:426:API: every locale this deployment advertises resolves rainmaker-common rows": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 131 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 202 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:458:API: the region-appended mangle of each advertised locale is empty — proves the dataset itself is clean": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 107 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 181 }
+    ],
+    "tests/admin/recently-shipped-fixes.spec.ts:481:UI: no UndoToast container is mounted after navigating into the configurator": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2968 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4077 }
+    ],
+    "tests/admin/tenants.spec.ts:117:4. API shape — search returns records with code / name / city": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 306 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 528 }
+    ],
+    "tests/admin/tenants.spec.ts:28:1. list renders expected columns and at least one row": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2377 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4412 }
+    ],
+    "tests/admin/tenants.spec.ts:59:3. show page renders Code / Name / City / District for a known tenant": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 109 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 103 }
+    ],
+    "tests/admin/theme-applied.spec.ts:21:MDMS ThemeConfig is fetched and applied as CSS variables": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2290 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4014 }
+    ],
+    "tests/admin/theme-editor.spec.ts:113:edit page renders the flagship editor (tabs + preview)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2386 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4441 }
+    ],
+    "tests/admin/theme-editor.spec.ts:160:editing a brand token updates the preview live": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2398 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3982 }
+    ],
+    "tests/admin/theme-editor.spec.ts:86:API smoke — ThemeConfig record exists on the expected tenant": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 109 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 183 }
+    ],
+    "tests/admin/users.spec.ts:132:1. list renders with profile columns + at least one citizen row": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3418 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4479 }
+    ],
+    "tests/admin/users.spec.ts:165:2. create — citizen user lands and is retrievable via API": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2309 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4321 }
+    ],
+    "tests/admin/users.spec.ts:253:3. edit — username disabled, name updates round-trip": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 390 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 407 }
+    ],
+    "tests/admin/users.spec.ts:361:4. show — profile fields render for a freshly seeded user": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 0 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 0 }
+    ],
+    "tests/admin/workflow-action-select-521.spec.ts:23:Edit view exposes a Workflow Action select; ESCALATE present when state=PENDINGATLME": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6972 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8306 }
+    ],
+    "tests/api/api-helpers.spec.ts:108:PGR business service is present": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 116 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 190 }
+    ],
+    "tests/api/api-helpers.spec.ts:48:mdms search returns Department schema records": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2125 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2885 }
+    ],
+    "tests/api/api-helpers.spec.ts:67:pgr search round-trips a known CLOSEDAFTERRESOLUTION complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 186 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 240 }
+    ],
+    "tests/api/api-helpers.spec.ts:90:hrms employee search returns >0 LMEs": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 188 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 287 }
+    ],
+    "tests/api/boundary-jurisdiction-496.spec.ts:38:boundary-relationships API returns only the ward subtree": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2837 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4680 }
+    ],
+    "tests/api/enc-key-drift-622.spec.ts:65:ADMIN can oauth/token (post-bootstrap enc-key guard)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4 }
+    ],
+    "tests/api/enc-key-drift-622.spec.ts:71:a pre-existing seeded employee still authenticates and still decrypts": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2197 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3667 }
+    ],
+    "tests/api/filestore-fixes-2026-04-29.spec.ts:33:a valid 1x1 JPEG uploads successfully — CCRS#474": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 124 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 197 }
+    ],
+    "tests/api/filestore-fixes-2026-04-29.spec.ts:69:a corrupt JPEG is rejected with a clean error, not a crash": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 104 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 179 }
+    ],
+    "tests/api/filestore-fixes-2026-04-29.spec.ts:93:Larger valid JPEG should succeed regardless of fix state (control)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 116 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 190 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:158:1 — acquire admin token": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 0 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:181:2 — ensure PGR workflow uses only ESCALATE self-loops": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 0 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 0 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:227:3 — ensure 2-level employee hierarchy (reportingTo) in HRMS": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5724 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 9282 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:382:4 — citizen creates complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 152 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 236 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:403:5 — admin assigns complaint to specific employee": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 304 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 458 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:440:6 — manual ESCALATE level 0→1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 379 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 523 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:497:7 — verify escalation: workflow action + PGR assignee": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 299 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 464 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:552:8 — second ESCALATE level 1→2 (skip if no second-level supervisor)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 331 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 506 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:620:9 — resolve the escalated complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 279 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 462 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:675:10 — citizen creates an unassigned PENDINGFORASSIGNMENT complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 144 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 232 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:695:11 — ESCALATE rejects an unassigned complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 398 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 956 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:726:12 — cleanup: assign and resolve the unassigned-case complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 573 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 864 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:787:13 — auto-escalation: SLA breach triggers scheduler": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 0 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 0 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:876:14 — audit: PGR workflow config matches the shipped seed": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 1 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 0 }
+    ],
+    "tests/api/pgr-escalation.spec.ts:925:14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 112 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 187 }
+    ],
+    "tests/api/pgr-lifecycle.spec.ts:168:2 — citizen creates complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 152 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 228 }
+    ],
+    "tests/api/pgr-lifecycle.spec.ts:211:3 — admin assigns complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 317 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 482 }
+    ],
+    "tests/api/pgr-lifecycle.spec.ts:265:4 — admin resolves complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 296 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 443 }
+    ],
+    "tests/api/pgr-lifecycle.spec.ts:301:5 — citizen verifies complaint is resolved": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 118 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 203 }
+    ],
+    "tests/api/pgr-lifecycle.spec.ts:67:1 — acquire admin and citizen tokens": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 737 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 1107 }
+    ],
+    "tests/api/proxy-coverage.spec.ts:124:all API calls carry JWT through proxy (no 401s after login)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 11296 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 14130 }
+    ],
+    "tests/api/proxy-coverage.spec.ts:171:MDMS, localization, and access APIs work with JWT auth": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1952 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3086 }
+    ],
+    "tests/api/proxy-coverage.spec.ts:296:citizen flow APIs work without authentication": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6483 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7997 }
+    ],
+    "tests/api/proxy-coverage.spec.ts:33:all employee flow APIs return valid responses through proxy": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 14470 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 17538 }
+    ],
+    "tests/citizen/citizen-help-and-faq.spec.ts:24:FAQ page does not render the error fallback": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7797 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10534 }
+    ],
+    "tests/citizen/citizen-help-and-faq.spec.ts:52:How-it-works page does not render the error fallback": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7517 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10077 }
+    ],
+    "tests/citizen/citizen-home-page.spec.ts:122:/pgr-home renders the PGR module home with action links": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7491 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 9111 }
+    ],
+    "tests/citizen/citizen-home-page.spec.ts:160:header language pill renders the current locale": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6005 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8300 }
+    ],
+    "tests/citizen/citizen-home-page.spec.ts:18:/citizen/ redirects to /citizen/all-services": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4356 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7334 }
+    ],
+    "tests/citizen/citizen-home-page.spec.ts:50:/all-services renders CMS title + File a Complaint + My Complaints links": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7251 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10223 }
+    ],
+    "tests/citizen/citizen-landing-dispatch.spec.ts:121:smoke: lands on a usable citizen page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3134 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5260 }
+    ],
+    "tests/citizen/citizen-landing-dispatch.spec.ts:141:dispatch: lands on the branch globalConfigs selects, and that branch works": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2715 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4561 }
+    ],
+    "tests/citizen/citizen-logout.spec.ts:5:citizen logout redirects to login page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4764 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7800 }
+    ],
+    "tests/citizen/citizen-otp-login.spec.ts:18:login page renders with mobile input": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2753 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 4310 }
+    ],
+    "tests/citizen/citizen-otp-login.spec.ts:45:citizen can log in with OTP and reach home page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3985 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6075 }
+    ],
+    "tests/citizen/citizen-profile-page.spec.ts:48:only Name + Gender + Email + photo render (no password/language/mobile/notifications)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9486 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11180 }
+    ],
+    "tests/citizen/citizen-registration.spec.ts:7:fresh phone → OTP → default national-number name → citizen home": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3807 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6026 }
+    ],
+    "tests/citizen/complaint-attachment.spec.ts:45:upload preview renders, then detail page surfaces the same image": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 31407 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 35351 }
+    ],
+    "tests/citizen/complaint-create-payload-contract.spec.ts:128:the discovered postal pattern is self-consistent with the deployment's own globalConfigs": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 103 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 175 }
+    ],
+    "tests/citizen/complaint-create-payload-contract.spec.ts:21:digit-ui bundle declares AddressOne + AddressTwo populators (PR-C re-enabled)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1032 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 1776 }
+    ],
+    "tests/citizen/complaint-create-payload-contract.spec.ts:47:the deployment postal-code pattern accepts this tenant's valid sample and rejects malformed input": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3 }
+    ],
+    "tests/citizen/complaint-create-payload-contract.spec.ts:67:postal validation is driven by the tenant's own configured rule, not the legacy Indian PIN pattern": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 1 }
+    ],
+    "tests/citizen/complaint-detail-page.spec.ts:12:complaint details page loads without crashing for a freshly-filed complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 22425 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 29596 }
+    ],
+    "tests/citizen/complaint-detail-page.spec.ts:80:complaint location section is hidden when absent and supports valid zero-axis coordinates (#1750)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 15792 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 23555 }
+    ],
+    "tests/citizen/complaint-filed-for-citizen-2640.spec.ts:108:filed before the citizen's first sign-in": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6544 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10217 }
+    ],
+    "tests/citizen/complaint-filed-for-citizen-2640.spec.ts:82:filed after the citizen signed in by OTP": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 14650 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 22235 }
+    ],
+    "tests/citizen/complaint-timeline-and-rating-display.spec.ts:19:PGR _search returns service.rating + workflow.action=RATE for the rated complaint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 552 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 579 }
+    ],
+    "tests/citizen/complaint-timeline-and-rating-display.spec.ts:46:Localization keys for the timeline rendering are seeded across the deployment locales (rainmaker-common + rainmaker-pgr)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 438 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 747 }
+    ],
+    "tests/citizen/complaint-type-dropdown-labels.spec.ts:6:complaint type dropdown shows human-readable translated names": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 12655 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 15152 }
+    ],
+    "tests/citizen/file-complaint-wizard.spec.ts:258:walks 6 steps + submits + lands on /pgr/response with PGR ID": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 28625 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 31197 }
+    ],
+    "tests/citizen/file-complaint-wizard.spec.ts:329:no raw localization keys visible at any wizard step": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 25094 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 27520 }
+    ],
+    "tests/citizen/full-complaint-lifecycle-ui.spec.ts:136:1 — citizen logs in via UI with fixed OTP": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3937 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6562 }
+    ],
+    "tests/citizen/full-complaint-lifecycle-ui.spec.ts:160:2 — citizen creates complaint via UI wizard": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 29362 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 33661 }
+    ],
+    "tests/citizen/full-complaint-lifecycle-ui.spec.ts:259:3 — admin sees complaint in PGR inbox (UI)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 19022 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 21095 }
+    ],
+    "tests/citizen/full-complaint-lifecycle-ui.spec.ts:308:4 — admin assigns complaint via UI": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 28652 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 30825 }
+    ],
+    "tests/citizen/full-complaint-lifecycle-ui.spec.ts:405:5 — admin resolves complaint via UI": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 27887 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 30031 }
+    ],
+    "tests/citizen/full-complaint-lifecycle-ui.spec.ts:490:6 — citizen sees resolved complaint on complaints page (UI)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8636 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11295 }
+    ],
+    "tests/citizen/login-mobile-input-validation.spec.ts:33:5-digit number shows inline error + helper hint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3379 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5134 }
+    ],
+    "tests/citizen/pgr-home-layout-and-scroll.spec.ts:126:#441 — submit rating without \"What was good?\" boxes does not crash": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 14001 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10076 }
+    ],
+    "tests/citizen/pgr-home-layout-and-scroll.spec.ts:22:#421 — landing ServicesSection top padding matches side padding": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3456 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6032 }
+    ],
+    "tests/citizen/pgr-home-layout-and-scroll.spec.ts:74:#422 — navigating into Create New Complaint lands at top of page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4041 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5974 }
+    ],
+    "tests/citizen/postal-code-alnum-input.spec.ts:47:postal-code field retains alnum + dash characters instead of stripping them": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 15714 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 17981 }
+    ],
+    "tests/citizen/postal-code-alnum-input.spec.ts:95:invalid postal code renders the error the tenant's own pattern implies": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 16170 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 18033 }
+    ],
+    "tests/citizen/profile-photo-save-445.spec.ts:16:upload JPEG photo, _update returns 2xx, no hard reload": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 21700 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 24834 }
+    ],
+    "tests/citizen/profile-photo-save.spec.ts:24:upload photo, _update returns 2xx, no hard reload": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 21969 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 25346 }
+    ],
+    "tests/citizen/rate-resolved-complaint.spec.ts:53:rate page renders 5 stars + 4 feedback checkboxes + Comments textarea": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9531 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11107 }
+    ],
+    "tests/citizen/reopen-closed-complaint.spec.ts:48:reopen step 0 renders title + 4 reason radios + Next button": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8537 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11477 }
+    ],
+    "tests/citizen/reopen-window-1252.spec.ts:175:offers REOPEN while still inside the configured window": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6145 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10282 }
+    ],
+    "tests/citizen/reopen-window-1252.spec.ts:189:hides REOPEN once the configured window has elapsed": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6897 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10312 }
+    ],
+    "tests/citizen/reopen-window-1252.spec.ts:207:defers to the server and keeps REOPEN when REOPENSLA is absent": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6285 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 9652 }
+    ],
+    "tests/citizen/track-my-complaint.spec.ts:109:Detail URL uses /complaints/:id (PLURAL) — Routes.js export diverges": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 13903 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 16066 }
+    ],
+    "tests/citizen/track-my-complaint.spec.ts:37:My Complaints list shows the seeded complaint with OPEN badge": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9531 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10995 }
+    ],
+    "tests/citizen/track-my-complaint.spec.ts:68:Detail page renders Summary / Details / Map / Timeline sections": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8571 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11303 }
+    ],
+    "tests/citizen/wizard-pin-and-boundary-cascade.spec.ts:30:pin step + locality cascade no longer trap the citizen": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 19036 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 20734 }
+    ],
+    "tests/employee/change-password-visibility-812.spec.ts:21:Account and security shows a styled password button": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 20652 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 24356 }
+    ],
+    "tests/employee/confirm-reauth-before-account-action-2645.spec.ts:42:Set or update password asks to confirm, then continues into the action": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 6441 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 9317 }
+    ],
+    "tests/employee/confirm-reauth-before-account-action-2645.spec.ts:57:Cancel on the confirmation returns to the account page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 6082 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 9324 }
+    ],
+    "tests/employee/digit-ui-shell-2026-05-31.spec.ts:50:hosted sign-in + chrome + visible decrypt + inbox honest drives": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 18208 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 20070 }
+    ],
+    "tests/employee/escalate-action-521.spec.ts:160:PENDINGATLME → Escalate → real ESCALATE transition into the configured target state": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 14663 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 18274 }
+    ],
+    "tests/employee/inbox-filters.spec.ts:194:status filter → only rows in the chosen workflow state @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 15351 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 18446 }
+    ],
+    "tests/employee/inbox-filters.spec.ts:242:complaint-type filter → only rows of the chosen serviceCode @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 22162 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 30635 }
+    ],
+    "tests/employee/inbox-filters.spec.ts:358:locality filter → only rows in the chosen leaf boundary @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 15540 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 19219 }
+    ],
+    "tests/employee/inbox-search.spec.ts:108:search by complaint number returns exactly that complaint @p1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 12154 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 15021 }
+    ],
+    "tests/employee/inbox-search.spec.ts:119:search by mobile number returns the matching complaint @p1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 12323 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 16015 }
+    ],
+    "tests/employee/inbox-search.spec.ts:144:search for a well-formed but non-existent complaint number returns nothing @p1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 11927 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 14590 }
+    ],
+    "tests/employee/login.spec.ts:50:valid credentials return access token": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1760 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2582 }
+    ],
+    "tests/employee/login.spec.ts:58:an unknown login is rejected": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3435 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6141 }
+    ],
+    "tests/employee/login.spec.ts:62:a real account with a wrong password is rejected": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3389 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6093 }
+    ],
+    "tests/employee/login.spec.ts:67:API session injection loads employee home": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 3611 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5165 }
+    ],
+    "tests/employee/pgr-details.spec.ts:156:Story 5.1 — details page loads without error (terminal fixture) @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5044 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7654 }
+    ],
+    "tests/employee/pgr-details.spec.ts:167:Story 5.4 — Complaint No. label + value match the SRID @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5119 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7514 }
+    ],
+    "tests/employee/pgr-details.spec.ts:174:Story 5.5 — Current Status chip renders localized status text @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5035 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7841 }
+    ],
+    "tests/employee/pgr-details.spec.ts:186:Story 5.6 — complaint classification rows render localized values @p1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5106 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7809 }
+    ],
+    "tests/employee/pgr-details.spec.ts:226:Story 5.9 — Filed Date renders in DD/MM/YYYY @p1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5448 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8540 }
+    ],
+    "tests/employee/pgr-details.spec.ts:233:Story 5.16 — Complaint Timeline section renders with checkpoint rows @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5192 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7592 }
+    ],
+    "tests/employee/pgr-details.spec.ts:248:Story 5.18 — timeline actor name is clean (no role-list concat) — #524": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5259 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8105 }
+    ],
+    "tests/employee/pgr-details.spec.ts:268:Story 5.24a — Take Action HIDDEN on terminal-state complaint @p1": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5277 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8729 }
+    ],
+    "tests/employee/pgr-details.spec.ts:283:Story 5.24b — Take Action VISIBLE on non-terminal complaint @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "failed", "durationMs": 15045 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "failed", "durationMs": 17798 }
+    ],
+    "tests/employee/pgr-details.spec.ts:303:Story 5.location — optional coordinates hide/show the complete location card (#1750)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 19804 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 33334 }
+    ],
+    "tests/employee/pgr-fixes-2026-04-29.spec.ts:32:PGR_LME-only role filter returns LMEs (not all-of-HRMS)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 291 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 282 }
+    ],
+    "tests/employee/pgr-fixes-2026-04-29.spec.ts:53:REJECTED state advertises a non-empty rejection-reason mdms list": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 117 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 190 }
+    ],
+    "tests/employee/pgr-fixes-2026-04-29.spec.ts:6:PGR business service: PENDINGFORASSIGNMENT.ASSIGN forward-state is PENDINGATLME, not a self-loop": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 322 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 543 }
+    ],
+    "tests/employee/pgr-inbox-sort-922.spec.ts:169:clicking Locality sorts ascending server-side, by the raw code, with no page error @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 17548 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 25255 }
+    ],
+    "tests/employee/pgr-inbox-sort-922.spec.ts:190:clicking Locality again toggles to descending, in both the request and the row order @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 19389 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 26494 }
+    ],
+    "tests/employee/pgr-inbox-sort-922.spec.ts:208:the sort icon toggles direction across repeated clicks, instead of staying on one arrow @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 13901 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 17033 }
+    ],
+    "tests/employee/pgr-inbox-sort-922.spec.ts:234:\"Current Owner\" has no sort affordance — pgr-services has no sort-by equivalent for it @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9835 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12345 }
+    ],
+    "tests/employee/profile-validation-config-445.spec.ts:31:post-auth UserProfile mount + onChange do not throw": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 11118 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 14135 }
+    ],
+    "tests/employee/profile.spec.ts:35:mobile prefix chip renders the tenant dial code (not hardcoded +91)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4462 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6487 }
+    ],
+    "tests/employee/reopen-limit-925.spec.ts:188:blocks reopen and shows a toast once the configured window has elapsed": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7176 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11310 }
+    ],
+    "tests/employee/reopen-limit-925.spec.ts:209:allows reopen while still inside the configured window": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7066 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12536 }
+    ],
+    "tests/employee/sidebar.spec.ts:125:HRMS + Workbench are absent from the employee shell": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5906 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8999 }
+    ],
+    "tests/employee/sidebar.spec.ts:176:sidebar drops modules listed in EMPLOYEE_MODULE_DENYLIST": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6561 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 9362 }
+    ],
+    "tests/employee/workflow-lifecycle-ui.spec.ts:102:ASSIGN (GRO) → PENDINGATLME, then RESOLVE (LME) → RESOLVED @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 30939 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 37317 }
+    ],
+    "tests/employee/workflow-reject-ui.spec.ts:100:REJECT (GRO) with a rejection reason → REJECTED, reason on timeline @p0": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 16334 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 19508 }
+    ],
+    "tests/employee/working-context-jurisdiction.spec.ts:45:jurisdiction shows the boundary name, not its code, on the employee home page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7080 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12185 }
+    ],
+    "tests/keycloak/kc-api.spec.ts:10:OIDC discovery: issuer includes the /auth prefix (frontendUrl regression)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 106 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 187 }
+    ],
+    "tests/keycloak/kc-api.spec.ts:16:OIDC discovery: every endpoint URL lives under the issuer origin + /auth prefix": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 107 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 184 }
+    ],
+    "tests/keycloak/kc-api.spec.ts:23:Hosted sign-in and _select mint an EMPLOYEE DIGIT context": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 251 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 412 }
+    ],
+    "tests/keycloak/kc-api.spec.ts:35:Selected DIGIT token round-trips directly to MDMS": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 251 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 414 }
+    ],
+    "tests/keycloak/kc-api.spec.ts:46:BFF authorize owns PKCE and the configured Google IdP hint": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 104 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 185 }
+    ],
+    "tests/keycloak/kc-ui.spec.ts:18:Google entry uses BFF authorize and server-owned PKCE": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 138 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 215 }
+    ],
+    "tests/keycloak/kc-ui.spec.ts:34:Configurator login page shows no Google button when Google is not a sign-in method": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1678 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3168 }
+    ],
+    "tests/keycloak/kc-ui.spec.ts:9:mobile + OTP authenticates through BFF and reaches the citizen home": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 4442 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6556 }
+    ],
+    "tests/keycloak/lost-sign-in-restart-2644.spec.ts:56:\"Start sign-in again\" leads to the workspace sign-in": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 17 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 4 }
+    ],
+    "tests/lifecycle/pgr-sla-auto-escalate.spec.ts:109:1 — acquire admin token": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 1 }
+    ],
+    "tests/lifecycle/pgr-sla-auto-escalate.spec.ts:126:2 — verify ESCALATE allows SYSTEM role on PENDINGATLME": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 115 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 554 }
+    ],
+    "tests/lifecycle/pgr-sla-auto-escalate.spec.ts:149:3 — verify HRMS reportingTo chain has at least one link": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 332 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 493 }
+    ],
+    "tests/lifecycle/pgr-sla-auto-escalate.spec.ts:175:4 — auto-escalation: scheduler fires within ~120 s of SLA breach": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 0 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 0 }
+    ],
+    "tests/onboarding-real/workspace-lifecycle.spec.ts:18:signup -> workspace DONE -> complaint lifecycle -> member removal on a fresh tenant": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 2 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 2 }
+    ],
+    "tests/smoke/auth.spec.ts:5:login returns token": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1852 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2761 }
+    ],
+    "tests/smoke/deployment-profile.spec.ts:30:deployment profile describes the deployment under test": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6 }
+    ],
+    "tests/smoke/deployment-profile.spec.ts:74:deployment profile is non-empty": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 5 }
+    ],
+    "tests/smoke/deployment-profile.spec.ts:85:deployment meets its declared expectations": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 2 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 3 }
+    ],
+    "tests/specs/configurator/employee-create.spec.ts:17:no Username input field exists (#460)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7460 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10857 }
+    ],
+    "tests/specs/configurator/employee-create.spec.ts:49:assignment without dept/designation shows validation error (#458)": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8690 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12661 }
+    ],
+    "tests/specs/configurator/employee-create.spec.ts:90:form has all expected sections": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7752 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11345 }
+    ],
+    "tests/specs/configurator/employee-edit.spec.ts:16:employee list loads": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7342 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11030 }
+    ],
+    "tests/specs/configurator/employee-edit.spec.ts:39:edit employee preserves assignments and jurisdictions": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 17266 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 21138 }
+    ],
+    "tests/specs/configurator/onboarding-employee-single-department.spec.ts:20:Add shows a single Department select and saves exactly one assignment": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "skipped", "durationMs": 23469 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "skipped", "durationMs": 27917 }
+    ],
+    "tests/specs/configurator/user-create.spec.ts:105:submit with invalid mobile shows format error": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8046 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11893 }
+    ],
+    "tests/specs/configurator/user-create.spec.ts:144:valid tenant mobile does not show validation error": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7619 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 11437 }
+    ],
+    "tests/specs/configurator/user-create.spec.ts:45:mobile field shows tenant help text": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 7050 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 10988 }
+    ],
+    "tests/specs/configurator/user-create.spec.ts:70:mobile field is required — form stays on create page": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 9227 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12986 }
+    ],
+    "tests/specs/pgr-geo-location-contract.spec.ts:9:distinguishes missing/legacy coordinates from valid zero-axis points": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 8 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 6 }
+    ],
+    "tests/specs/pgr-postal-code.spec.ts:214:postal code field is not required — form proceeds without it": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 5676 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 7979 }
+    ],
+    "tests/specs/pgr-postal-code.spec.ts:241:valid postal code (deployment format) is accepted": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6174 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8558 }
+    ],
+    "tests/specs/pgr-postal-code.spec.ts:284:postal error shows in real time while typing, without submit": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6531 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8845 }
+    ],
+    "tests/specs/pgr-postal-code.spec.ts:330:invalid postal code (6 digits / Indian format) is rejected": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6431 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8384 }
+    ],
+    "tests/specs/pgr-postal-code.spec.ts:367:invalid postal code (short / 3 digits) is rejected": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 6403 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 8366 }
+    ],
+    "tests/specs/verify-mobile-validation.spec.ts:6:mobile validation reflects the deployment MDMS rule": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 11430 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 12119 }
+    ],
+    "tests/utils/citizen-provision.spec.ts:13:provisionFreshCitizen returns identity matching MDMS rule + working token": [
+      { "runId": "2026-11-25_0729_ddae903b", "status": "passed", "durationMs": 1315 },
+      { "runId": "2026-11-24_2101_5a23a1e2", "status": "passed", "durationMs": 2052 }
+    ]
+  },
+  "runs": [
+    {
+      "id": "2026-11-25_0729_ddae903b",
+      "startedAt": "2026-11-25T07:29:32.486Z",
+      "durationMs": 1631711.16,
+      "passed": 238,
+      "failed": 8,
+      "skipped": 20,
+      "timedOut": 0,
+      "notRun": 0,
+      "excluded": 20,
+      "total": 266,
+      "cutShort": null,
+      "hasReport": true,
+      "runLimit": 5,
+      "sha": "ddae903ba43538553c56fa90a6af1b8f19b9d43f",
+      "branch": "digit-3.0-naipepea",
+      "baseUrl": "https://naipepea.digit.org"
+    },
+    {
+      "id": "2026-11-24_2101_5a23a1e2",
+      "startedAt": "2026-11-24T21:01:15.059Z",
+      "durationMs": 2155440.446,
+      "passed": 238,
+      "failed": 8,
+      "skipped": 20,
+      "timedOut": 0,
+      "notRun": 0,
+      "excluded": 20,
+      "total": 266,
+      "cutShort": null,
+      "hasReport": true,
+      "runLimit": 5,
+      "sha": "5a23a1e20626430257f80d5f8b94e0f8b99f0bcf",
+      "branch": "digit-3.0-naipepea",
+      "baseUrl": "https://naipepea.digit.org"
+    }
+  ]
+}

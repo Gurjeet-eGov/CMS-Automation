@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-11-25T07:57:03.934Z",
+  "dashboards": [
+    {
+      "key": "digit-3.0-naipepea/nai-pepea",
+      "source": "digit-3.0-naipepea",
+      "environment": "Nai Pepea",
+      "url": "digit-3.0-naipepea/nai-pepea/",
+      "runs": 2,
+      "lastRun": {
+        "id": "2026-11-25_0729_ddae903b",
+        "startedAt": "2026-11-25T07:29:32.486Z",
+        "passed": 238,
+        "failed": 8,
+        "timedOut": 0,
+        "skipped": 20,
+        "notRun": 0,
+        "total": 266,
+        "cutShort": null,
+        "hasReport": true,
+        "branch": "digit-3.0-naipepea",
+        "sha": "ddae903ba43538553c56fa90a6af1b8f19b9d43f",
+        "baseUrl": "https://naipepea.digit.org"
+      }
+    }
+  ]
+}

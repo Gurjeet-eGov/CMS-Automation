@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CMS test dashboards</title>
+  <!--
+    Landing page of the GitHub Pages site. ci/publish-pages.sh copies it to the
+    site root and writes dashboards.json next to it (ci/build-site-index.mjs).
+    Each card opens one dashboard: one branch's suite run against one
+    environment.
+  -->
+  <style>
+    :root {
+      --bg: #0e1116; --panel: #161b22; --border: #30363d; --fg: #e6edf3; --muted: #8b949e;
+      --link: #58a6ff; --pass: #3fb950; --fail: #f85149; --skip: #d29922;
+      color-scheme: dark;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f8fa; --panel: #ffffff; --border: #d0d7de; --fg: #1f2328; --muted: #59636e;
+        --link: #0969da; --pass: #1a7f37; --fail: #cf222e; --skip: #9a6700;
+        color-scheme: light;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 32px 0 12px; font-weight: 600; }
+    p.lede { color: var(--muted); margin: 0; }
+    a { color: var(--link); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .card { display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; color: inherit; text-decoration: none; }
+    .card:hover, .card:focus-visible { border-color: var(--link); outline: none; }
+    .card .env { font-size: 17px; font-weight: 600; }
+    .card .url { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .counts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 12px 0 8px; font-variant-numeric: tabular-nums; }
+    .counts span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--muted); }
+    .counts .pass::before { background: var(--pass); }
+    .counts .fail::before { background: var(--fail); }
+    .counts .skip::before { background: var(--skip); }
+    .meta { color: var(--muted); font-size: 13px; }
+    .cut { color: var(--fail); font-size: 13px; margin-top: 6px; }
+    .empty { background: var(--panel); border: 1px dashed var(--border); border-radius: 8px; padding: 20px; color: var(--muted); }
+    footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>CMS integration test dashboards</h1>
+    <p class="lede">One dashboard per suite and environment. Each keeps the last 30 full runs; the newest few keep their full Playwright report.</p>
+    <div id="groups"><p class="meta">Loading…</p></div>
+    <footer id="footer"></footer>
+  </main>
+  <script>
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const sourceLabel = s => `Branch — ${s}`;
+    function when(id, startedAt) {
+      const t = Date.parse(startedAt || '') || Date.parse(String(id).slice(0, 10) + 'T' + String(id).slice(11, 13) + ':' + String(id).slice(13, 15) + ':00Z');
+      return Number.isFinite(t) ? new Date(t).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : String(id);
+    }
+    function card(d) {
+      const r = d.lastRun || {};
+      const failed = (r.failed || 0) + (r.timedOut || 0);
+      return `<a class="card" href="${esc(d.url)}">
+        <div class="env">${esc(d.environment)}</div>
+        <div class="url">${esc(r.baseUrl || '')}</div>
+        <div class="counts" aria-label="Latest run results">
+          <span class="pass">${r.passed ?? 0} passed</span>
+          <span class="fail">${failed} failed</span>
+          <span class="skip">${r.skipped ?? 0} skipped</span>
+          ${r.notRun ? `<span>${r.notRun} did not run</span>` : ''}
+        </div>
+        <div class="meta">Last run ${esc(when(r.id, r.startedAt))} · ${d.runs} run${d.runs === 1 ? '' : 's'} in history${r.sha ? ` · <code>${esc(String(r.sha).slice(0, 7))}</code>` : ''}</div>
+        ${r.cutShort ? `<div class="cut">Cut short: ${esc(r.cutShort)}</div>` : ''}
+      </a>`;
+    }
+    fetch('dashboards.json', { cache: 'no-cache' })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(({ dashboards = [], generatedAt }) => {
+        const el = document.getElementById('groups');
+        if (!dashboards.length) { el.innerHTML = '<p class="empty">No full run has been published yet.</p>'; return; }
+        const bySource = new Map();
+        for (const d of dashboards) bySource.set(d.source, [...(bySource.get(d.source) || []), d]);
+        el.innerHTML = [...bySource].map(([source, list]) =>
+          `<h2>${esc(sourceLabel(source))}</h2><div class="grid">${list.map(card).join('')}</div>`).join('');
+        document.getElementById('footer').textContent = `Updated ${when('', generatedAt)}.`;
+      })
+      .catch(e => {
+        document.getElementById('groups').innerHTML = `<p class="empty">Could not load dashboards.json (${esc(e.message)}).</p>`;
+      });
+  </script>
+</body>
+</html>
