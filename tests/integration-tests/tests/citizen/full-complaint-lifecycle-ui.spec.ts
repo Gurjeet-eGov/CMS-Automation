@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * PGR Lifecycle — UI-only
  *
@@ -12,20 +11,16 @@ import { tenantSlug } from '../utils/identity-bff';
  *
  * Run: npx playwright test tests/specs/pgr-lifecycle-ui.spec.ts
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { getDigitToken, loginViaApi } from '../utils/auth';
 import { citizenOtpLogin } from '../utils/citizen-login';
-import { continueFiling, fileComplaintUrl, fillDetailsStep, fillLocationStep, primaryButton } from '../utils/citizen-filing';
 import { getPersona } from '../utils/personas';
 import {
   BASE_URL, TENANT, ROOT_TENANT,
   ADMIN_USER, ADMIN_PASS, FIXED_OTP,
-  DEFAULT_PASSWORD,
+  DEFAULT_PASSWORD, PGR_ID_PREFIX,
   generateCitizenPhone,
 } from '../utils/env';
-import { SERVICE_CODE, LOCALITY_CODE } from '../utils/env';
-import { SRID_RE } from '../utils/pgr-idgen';
-import { fetchMdms } from '../utils/probes';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -140,7 +135,7 @@ test.describe.serial('PGR lifecycle — UI only', () => {
 
 Steps:
 1. citizenOtpLogin(page, CITIZEN_PHONE) — UI helper that drives the phone form, OTP form, and language/city pickers.
-2. Read 'Citizen.token' from sessionStorage; assert it's truthy.
+2. Read sessionStorage 'Citizen.token'; assert it's truthy.
 3. Set citizenLoggedIn flag, snap screenshot 01-citizen-logged-in.
 
 First link in a 6-step UI lifecycle. Marked test.slow() at the describe level — UI flow with multiple page hydrations.`,
@@ -160,18 +155,21 @@ First link in a 6-step UI lifecycle. Marked test.slow() at the describe level �
   test('2 — citizen creates complaint via UI wizard', {
     annotation: {
       type: 'description',
-      description: `Drives the full citizen file-complaint wizard through the UI and captures the resulting serviceRequestId both via response interception and a fallback regex on the response page. Heavy spec — exercises the three-step flow: description and category levels, the boundary cascade without a pin, and the final submit.
+      description: `Drives the full citizen file-complaint wizard through the UI and captures the resulting serviceRequestId both via response interception and a fallback regex on the response page. Heavy spec — exercises type/subtype dropdowns, geolocation skip, address selection (radios for <5 localities, dropdowns for 5+), description, and final submit.
 
 Steps:
 1. test.skip if citizen wasn't logged in.
 2. setTimeout 180s; re-login via UI.
 3. Install a route handler on /pgr-services/v2/request/_create to capture the response body's serviceRequestId.
-4. Navigate to /{slug}/digit-ui/citizen/pgr/create-complaint/complaint-type.
-5. Step 1: fill the description with an ISO timestamp and pick every complaint-category level → Next.
-6. Step 2: pick every boundary level down to the leaf (no map pin) → Next.
-7. Step 3: Submit complaint, wait for the /pgr/response URL, snap final screenshot.
-8. Pull serviceRequestId from the captured response or fall back to scraping the response page.
-9. Assert serviceRequestId is truthy; set complaintCreated.
+4. Navigate to /digit-ui/citizen/pgr/create-complaint and wait 8s for hydration.
+5. Step 0: select complaint type (and subtype if a second dropdown appears) → NEXT.
+6. Step 1: skip geolocation → NEXT.
+7. Step 2: skip location details → NEXT.
+8. Step 3: select address — try city radios first, then locality radios or dropdown depending on count; throw if no locality option appears.
+9. Step 4: fill description textarea with an ISO timestamp; NEXT.
+10. Step 5: click SUBMIT, wait for /pgr/response URL, snap final screenshot.
+11. Pull serviceRequestId from the captured response or fall back to scraping the response page.
+12. Assert serviceRequestId is truthy; set complaintCreated.
 
 Long timeout (180s) because of multiple boundary lookups and DOM settles. Catches a regression where the boundary mismatch leaves locality dropdowns empty (CCRS#477).`,
     },
@@ -197,40 +195,207 @@ Long timeout (180s) because of multiple boundary lookups and DOM settles. Catche
     page.on('pageerror', (err) => console.log(`[PAGE ERROR] ${err.message}`));
 
     // Navigate to complaint creation wizard
-    await page.goto(fileComplaintUrl(), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.goto(`${BASE_URL}/digit-ui/citizen/pgr/create-complaint`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    await page.waitForTimeout(8000);
 
-    // Develop's three-step flow (utils/citizen-filing.ts). The old separate
-    // geolocation, address and description steps are gone: the description is
-    // on step 1 and the boundary cascade on step 2.
-    // File the profile's complaint type at its locality: the GRO and LME that
-    // tests 4-5 act as only see complaints in their department and ward, so
-    // the walker's default first category (another department) would leave
-    // them "No Results Found". The category path, root first, from MDMS.
-    const admin = await getDigitToken({ tenant: TENANT, username: ADMIN_USER, password: ADMIN_PASS });
-    const rows = (await fetchMdms(TENANT, 'RAINMAKER-PGR.ComplaintHierarchy', admin.access_token))
-      .map((r: any) => r?.data).filter((d: any) => d?.code);
-    const path: Array<{ code: string; name?: string }> = [];
-    for (let code: string | undefined = SERVICE_CODE; code && path.length < 8; ) {
-      const row = rows.find((d: any) => d.code === code);
-      if (!row) break;
-      path.unshift({ code: row.code, name: row.name });
-      code = row.parent || row.parentCode || undefined;
-    }
-    const categories = path.flatMap((n) => (n.name ? [n.name, n.code] : [n.code]));
-    console.log(`Step 1: description + complaint category (${path.map((n) => n.code).join(' > ') || 'first options'})...`);
-    await fillDetailsStep(page, { description: `E2E UI lifecycle test — ${new Date().toISOString()}`, categories });
+    // Helper: click NEXT or SUBMIT
+    const clickNextOrSubmit = async (label = 'NEXT') => {
+      const btn = page.locator('button[type="button"], button[type="submit"]')
+        .filter({ hasText: new RegExp(label, 'i') }).first();
+      await btn.waitFor({ state: 'visible', timeout: 10_000 });
+      await btn.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(300);
+      await btn.click();
+      await page.waitForTimeout(5000);
+    };
+
+    // Cross-build dropdown locator. The modern digit-ui (CreatePGRFlowV2)
+    // renders each hierarchy level as a shadcn <button role="combobox">;
+    // older builds used input.digit-dropdown-employee-select-wrap--elipses.
+    // Matching only the legacy input made this spec time out on the v2 build
+    // (the wizard was never touched, so NEXT stayed disabled). Match both.
+    const wizardDropdowns = page.locator(
+      'button[role="combobox"], input.digit-dropdown-employee-select-wrap--elipses',
+    );
+    const optionLocator = () =>
+      page.locator(
+        '[role="listbox"][data-state="open"] [role="option"], [role="option"]:visible, .digit-dropdown-item:visible',
+      );
+
+    // Helper: select dropdown option
+    const selectDropdownOption = async (index: number) => {
+      const dropdown = wizardDropdowns.nth(index);
+      await dropdown.waitFor({ state: 'visible', timeout: 10_000 });
+      await dropdown.click();
+      await page.waitForTimeout(1000);
+      const items = optionLocator();
+      const count = await items.count();
+      console.log(`Dropdown ${index}: ${count} items`);
+      await items.first().click();
+      await page.waitForTimeout(500);
+    };
+
+    // Walk a depth-agnostic dropdown cascade. Used for both the complaint-type
+    // levels and the boundary levels: depth is tenant-defined (complaint types
+    // are 2 levels on mz.maputo vs 4 on ke; boundaries are 4 on MAPUTO_ADMIN —
+    // Município > Distrito Municipal > Bairro > Quarteirão), each child renders
+    // disabled until the parent's lookup lands, and every level carrying options
+    // is mandatory — so NEXT only enables once the deepest is picked.
+    const walkCascade = async (firstLevelTimeout = 10_000) => {
+      for (let level = 0; level < 8; level++) {
+        const combobox = wizardDropdowns.nth(level);
+        const visible = await combobox
+          .isVisible({ timeout: level === 0 ? firstLevelTimeout : 3000 })
+          .catch(() => false);
+        if (!visible) break;
+        await expect(combobox).toBeEnabled({ timeout: 8000 }).catch(() => {});
+        if (!(await combobox.isEnabled().catch(() => false))) break;
+        // "Is this level still unselected?" — asked differently per build,
+        // because the two builds keep the answer in different places. The v2
+        // combobox is a <button> whose innerText is the chosen label (or
+        // "Select ..."), but the legacy control is an <input>, and innerText is
+        // ALWAYS "" on an <input> — so a single innerText test silently reports
+        // every legacy dropdown as already-selected, skips the click, and
+        // leaves NEXT disabled until the step times out. Read `value` there.
+        const hasPlaceholder = await combobox
+          .evaluate((el) => {
+            if (el instanceof HTMLInputElement) {
+              const chosen = el.value.trim();
+              return !chosen || /^Select/i.test(chosen);
+            }
+            return /^Select/i.test((el as HTMLElement).innerText.trim());
+          })
+          .catch(() => true);
+        if (!hasPlaceholder) continue;
+        await selectDropdownOption(level);
+        await page.waitForTimeout(1500);
+      }
+    };
+
+    // Step 0: Select complaint type.
+    console.log('Step 0: Selecting complaint type...');
+    await walkCascade();
     await snap(page, '02a-complaint-type');
-    await continueFiling(page);
+    await clickNextOrSubmit('NEXT');
 
-    console.log('Step 2: location — boundary cascade, no pin...');
-    await fillLocationStep(page, { boundaries: [LOCALITY_CODE] });
-    await snap(page, '02b-address');
-    await continueFiling(page);
+    // Step 1: Geolocation — skip
+    console.log('Step 1: Geolocation — skipping...');
+    await clickNextOrSubmit('NEXT');
 
-    console.log('Step 3: review → submit...');
-    await expect(primaryButton(page)).toHaveText(/submit/i);
-    await continueFiling(page);
+    // Step 2: Location details — the boundary cascade lives here and its top
+    // level is required (rendered with a `*`), so this step cannot be skipped:
+    // clicking NEXT blind leaves the button disabled until the test times out.
+    console.log('Step 2: Location details — walking boundary cascade...');
+    await page.waitForTimeout(3000);
+    await walkCascade(5000);
+    await snap(page, '02a1-location-details');
+    await clickNextOrSubmit('NEXT');
 
+    // Step 3: Address — handle radio buttons (city) + locality
+    console.log('Step 3: Selecting address...');
+    await page.waitForTimeout(2000);
+
+    const radioButtons = page.locator('input[type="radio"]');
+    // Cross-build: v2 renders boundary levels as shadcn button comboboxes.
+    const boundaryDropdowns = page.locator(
+      'button[role="combobox"], input[class*="select-wrap--elipses"]',
+    );
+
+    if (await radioButtons.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+      const radioCount = await radioButtons.count();
+      console.log(`${radioCount} radio buttons found — selecting last (city-level)`);
+      await radioButtons.last().click();
+
+      // Wait for boundary API response and DOM update
+      await page.waitForTimeout(8000);
+      await snap(page, '02b-address-debug');
+
+      let localitySelected = false;
+
+      // Try waiting for new radio buttons (< 5 localities)
+      try {
+        const newRadio = page.locator('.radio-wrap input[type="radio"]').nth(radioCount);
+        await newRadio.waitFor({ state: 'attached', timeout: 10_000 });
+        const newRadioCount = await page.locator('.radio-wrap input[type="radio"]').count();
+        if (newRadioCount > radioCount) {
+          console.log(`${newRadioCount - radioCount} locality radio options appeared`);
+          await page.locator('.radio-wrap input[type="radio"]').nth(radioCount).click();
+          await page.waitForTimeout(500);
+          localitySelected = true;
+        }
+      } catch { /* no new radios, try dropdown */ }
+
+      // Try waiting for a dropdown (>= 5 localities)
+      if (!localitySelected) {
+        try {
+          const localityDropdown = boundaryDropdowns;
+          await localityDropdown.first().waitFor({ state: 'visible', timeout: 10_000 });
+          const ddCount = await localityDropdown.count();
+          console.log(`Locality dropdown appeared (${ddCount} matching)`);
+          await localityDropdown.first().click();
+          await page.waitForTimeout(1000);
+          const items = optionLocator();
+          const itemCount = await items.count();
+          console.log(`Locality dropdown items: ${itemCount}`);
+          if (itemCount > 0) {
+            await items.first().click();
+            await page.waitForTimeout(500);
+            localitySelected = true;
+          }
+        } catch { /* no dropdown either */ }
+      }
+
+      if (!localitySelected) {
+        console.log('No locality options loaded — boundary type mismatch likely');
+        throw new Error('UI wizard blocked: locality options empty');
+      }
+
+      await snap(page, '02b-address');
+      await clickNextOrSubmit('NEXT');
+    } else if (await boundaryDropdowns.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+      const dropdownCount = await boundaryDropdowns.count();
+      console.log(`${dropdownCount} boundary dropdowns found`);
+      for (let i = 0; i < dropdownCount; i++) {
+        console.log(`Selecting boundary level ${i}...`);
+        await selectDropdownOption(i);
+        await page.waitForTimeout(2000);
+      }
+      await snap(page, '02b-address');
+      await clickNextOrSubmit('NEXT');
+    } else {
+      // No address controls. On builds where the boundary cascade already lives
+      // on Location Details (mz.maputo), there is no separate address step and
+      // we are already on Description — clicking NEXT here would wait on a
+      // button that stays disabled until Description is filled, hanging until
+      // the test times out. Only advance if this really is an empty step.
+      const onDescription = await page
+        .locator('textarea')
+        .first()
+        .isVisible({ timeout: 3000 })
+        .catch(() => false);
+      if (onDescription) {
+        console.log('No separate address step on this build — already at Description');
+      } else {
+        console.log('No address controls found — skipping');
+        await clickNextOrSubmit('NEXT');
+      }
+    }
+
+    // Step 4: Description
+    console.log('Step 4: Filling description...');
+    const textarea = page.locator('textarea').first();
+    await textarea.waitFor({ state: 'visible', timeout: 15_000 });
+    await textarea.fill(`E2E UI lifecycle test — ${new Date().toISOString()}`);
+    await clickNextOrSubmit('NEXT');
+
+    // Step 5: Photo upload — submit
+    console.log('Step 5: Submitting...');
+    await clickNextOrSubmit('SUBMIT');
+
+    // Wait for response page
     await page.waitForURL('**/pgr/response**', { timeout: 30_000 }).catch(() => {
       console.log('Did not redirect to /pgr/response, URL:', page.url());
     });
@@ -241,10 +406,10 @@ Long timeout (180s) because of multiple boundary lookups and DOM settles. Catche
       serviceRequestId = capturedId;
     } else {
       const bodyText = await page.locator('body').innerText();
-      // Every workspace can have its own complaint-ID prefix (PG on maputo,
-      // NCCG on nairobi, …), and discovering it can fall back to a default,
-      // so match the shape only: <any prefix>-PGR-YYYY-MM-DD-<seq> (SRID_RE).
-      const match = bodyText.match(SRID_RE);
+      // Build the SRID regex from the deployment's own idgen prefix (PG on
+      // maputo, NCCG on nairobi, …) — a hardcoded `PG-PGR` matched nothing on
+      // any other deployment, leaving serviceRequestId undefined.
+      const match = bodyText.match(new RegExp(`${PGR_ID_PREFIX}-PGR-\\d{4}-\\d{2}-\\d{2}-\\d{6}`));
       if (match) serviceRequestId = match[0];
     }
 
@@ -284,7 +449,7 @@ Doesn't assert the complaint appears in the inbox because legitimate boundary sc
       password: admin.password,
     });
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/inbox`, {
+    await page.goto(`${BASE_URL}/digit-ui/employee/pgr/inbox`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });
@@ -316,7 +481,7 @@ Steps:
 3. Assert the complaint ID appears in the body (correct page loaded).
 4. Click the "Take Action" button.
 5. Click the "Assign" header dropdown option.
-6. Wait for the modal, pick the employee to assign (the step-5 resolver when listed, else the first), fill its first textarea with "Assigned via E2E UI test".
+6. Wait for the modal, fill its first textarea with "Assigned via E2E UI test".
 7. Click SUBMIT inside the modal.
 8. fetchComplaintStatus(srid) and assert applicationStatus === 'PENDINGATLME'.
 
@@ -338,7 +503,7 @@ Status verification is API-only because there's no good DOM signal that the assi
 
     // Navigate to complaint details
     console.log(`Navigating to complaint ${serviceRequestId}...`);
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${serviceRequestId}`, {
+    await page.goto(`${BASE_URL}/digit-ui/employee/pgr/complaint-details/${serviceRequestId}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });
@@ -368,16 +533,6 @@ Status verification is API-only because there's no good DOM signal that the assi
     const modal = page.locator('[class*="modal"], [class*="Modal"], .popup-module');
     await expect(modal.first()).toBeVisible({ timeout: 5_000 });
     console.log('Assign modal opened');
-
-    // Employee Name is required (AssigneeComponent): pick the step-5 resolver
-    // when the list shows its name, else the first employee. The list nests
-    // employees ("<name> (<department>)") under department rows.
-    const resolverName = String((await resolverPersona()).userInfo?.name ?? '').trim();
-    await modal.locator('.assignee-dropdown-container input[type="text"]').first().click();
-    const employees = page.locator('.digit-dropdown-options-card .digit-dropdown-item').filter({ hasText: /\(.+\)\s*$/ });
-    await expect(employees.first(), 'the Assign modal must list an employee to assign').toBeVisible({ timeout: 10_000 });
-    const preferred = resolverName ? employees.filter({ hasText: resolverName }).first() : employees.first();
-    await ((await preferred.count()) ? preferred : employees.first()).click();
 
     // Fill in comments
     const commentsField = modal.locator('textarea').first();
@@ -434,7 +589,7 @@ API-only verification of status follows the same pattern as step 4 — UI flow i
 
     // Navigate to complaint details
     console.log(`Navigating to complaint ${serviceRequestId} as ${resolver.username} (roles: ${resolver.roles.join('|')})...`);
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${serviceRequestId}`, {
+    await page.goto(`${BASE_URL}/digit-ui/employee/pgr/complaint-details/${serviceRequestId}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });
@@ -490,7 +645,7 @@ API-only verification of status follows the same pattern as step 4 — UI flow i
   test('6 — citizen sees resolved complaint on complaints page (UI)', {
     annotation: {
       type: 'description',
-      description: `Final step: re-login as the citizen (different browser context, fresh cookies/localStorage) and confirm the resolved complaint appears on the citizen's My Complaints page. Tries a "Resolved/Closed/All" tab fallback if the default view doesn't list the complaint, then asserts visibility.
+      description: `Final step: re-login as the citizen (different browser context, fresh cookies/storage) and confirm the resolved complaint appears on the citizen's My Complaints page. Tries a "Resolved/Closed/All" tab fallback if the default view doesn't list the complaint, then asserts visibility.
 
 Steps:
 1. test.skip if !complaintCreated; setTimeout 60s.
@@ -507,7 +662,7 @@ Closes the citizen → admin → citizen loop. If this fails, the citizen can't 
 
     await citizenOtpLogin(page, CITIZEN_PHONE);
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr/complaints`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/pgr/complaints`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

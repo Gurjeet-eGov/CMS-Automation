@@ -11,6 +11,8 @@
 #   smoke+api      --project=smoke --project=api
 #   citizen | employee | admin | lifecycle   that folder under tests/
 #   full           everything (the only scope that feeds the dashboard history)
+#   session-checks only the tests tagged @2.12_session_checks, which every other
+#                  scope (full included) leaves out — RUN_SESSION_CHECKS=1
 #
 # Reads (all optional): ENV_CONFIG and ENV_SECRETS (on GitHub: the chosen
 # environment's CONFIG_ENV and SECRETS_ENV), INPUT_BASE_URL, INPUT_TENANT_SLUG,
@@ -61,6 +63,7 @@ case "$SCOPE" in
   smoke+api)    ARGS=(--project=smoke --project=api) ;;
   citizen|employee|admin|lifecycle) ARGS=("tests/$SCOPE") ;;
   full)         ARGS=() ;;
+  session-checks) export RUN_SESSION_CHECKS=1; ARGS=() ;;
   *) echo "[run] unknown scope: $SCOPE" >&2; exit 2 ;;
 esac
 PARTIAL=false

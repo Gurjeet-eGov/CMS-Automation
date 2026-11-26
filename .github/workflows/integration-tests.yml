@@ -25,9 +25,9 @@ on:
         type: environment
         required: true
       scope:
-        description: Which tests (full = everything, and the only scope that goes on the dashboard; profile-only = read-only check of the deployment)
+        description: Which tests (full = everything, and the only scope that goes on the dashboard; profile-only = read-only check of the deployment; session-checks = only the session and file-access checks, which no other scope runs)
         type: choice
-        options: [full, profile-only, smoke, api, smoke+api, citizen, employee, admin, lifecycle]
+        options: [full, profile-only, smoke, api, smoke+api, citizen, employee, admin, lifecycle, session-checks]
         default: full
       grep:
         description: Optional — only tests whose title or tags match, e.g. @area:pgr

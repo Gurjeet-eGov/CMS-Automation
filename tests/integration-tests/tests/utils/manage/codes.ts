@@ -49,12 +49,3 @@ export function testCodeIndexed(test: TestInfo, kind: string, index: number): st
   const padded = String(index).padStart(3, '0');
   return testCode(test, `${kind}_${padded}`);
 }
-
-/**
- * "12345" → "bcdef": a unique suffix with no digits, for person names. DIGIT
- * 3.0's individual registry refuses names that carry digits (user create:
- * INVALID_USER; complaint citizen: INVALID_NAME).
- */
-export function lettersOnly(digits: string): string {
-  return digits.replace(/\d/g, (d) => 'abcdefghij'[Number(d)]);
-}

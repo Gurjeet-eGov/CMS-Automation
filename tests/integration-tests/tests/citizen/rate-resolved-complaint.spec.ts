@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Citizen rate-complaint UI — Story 6.1.
  *
@@ -26,7 +25,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * tightening wants a full submit, factor out the resolve flow into a
  * helper and add a second test there.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 
 // Disable trace/video so the spec runs cleanly with --no-deps (the
 // .playwright-artifacts-0 dir is only created by the full setup DAG).
@@ -69,7 +68,7 @@ beforeAll is API-only (file complaint as the provisioned citizen, assign, resolv
     tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:citizen'] }, async ({ page }) => {
     test.setTimeout(120_000);
     await citizenOtpLogin(page);
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr/rate/${serviceRequestId}`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/pgr/rate/${serviceRequestId}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

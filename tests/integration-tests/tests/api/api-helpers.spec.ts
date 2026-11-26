@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { loginEmployee, mdmsSearch, pgrSearch, hrmsSearch, workflowBusinessService } from '../utils/launch-fixes/api.js';
 import { readLifecycleFixtures } from '../utils/lifecycle-fixtures';
 import { TENANT } from '../utils/env';

@@ -12,7 +12,7 @@
  *      MUST include an "Escalate" option — the original closure
  *      criterion. Pre-fix bug was the option being missing.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { BASE_URL, TENANT } from '../utils/env';
 import { requires } from '../utils/capabilities';
 import { loadAuth, pgrSearch } from '../utils/manage/api';

@@ -1,10 +1,50 @@
-import { test as setup } from '@playwright/test';
+import { test as setup, expect } from '@playwright/test';
 import path from 'node:path';
-import { TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
-import { loginViaApi } from '../utils/auth';
+import { BASE_URL, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
+import { employeeSessionKeys, writeTabSession, saveTabSession } from '../utils/session-storage';
 
-// Persist the BFF cookie as well as the DIGIT context; no native password grant.
+const AUTH_FILE = path.resolve('auth-api.json');
+// storageState cannot hold sessionStorage; utils/session-test.ts replays this file.
+const SESSION_FILE = path.resolve('auth-api-session.json');
+
+// Token-injection auth. Skips the UI login form entirely — used by smoke
+// and api projects where login is a prerequisite, not the thing under test.
+// Mirrors local-setup/tests/e2e/utils/auth.ts:loginViaApi.
 setup('authenticate via api', async ({ page }) => {
-  await loginViaApi(page, { tenant: TENANT, username: ADMIN_USER, password: ADMIN_PASS });
-  await page.context().storageState({ path: path.resolve('auth-api.json') });
+  const tokenUrl = `${BASE_URL}/user/oauth/token`;
+  const body = new URLSearchParams({
+    grant_type: 'password',
+    username: ADMIN_USER,
+    password: ADMIN_PASS,
+    tenantId: ROOT_TENANT,
+    scope: 'read',
+    userType: 'EMPLOYEE',
+  });
+
+  const resp = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: 'Basic ZWdvdi11c2VyLWNsaWVudDo=',
+    },
+    body: body.toString(),
+  });
+
+  expect(resp.ok, `ROPC token request failed (${resp.status})`).toBe(true);
+  const tokenJson = await resp.json() as {
+    access_token: string;
+    UserRequest?: { uuid: string; name: string; roles: Array<{ code: string; tenantId: string }> };
+  };
+  expect(tokenJson.access_token).toBeTruthy();
+
+  // Web storage is origin-scoped; navigate first to set the origin.
+  await page.goto(`${BASE_URL}/digit-ui/employee/user/login`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30_000,
+  });
+
+  await writeTabSession(page, employeeSessionKeys(tokenJson, ROOT_TENANT));
+
+  await page.context().storageState({ path: AUTH_FILE });
+  await saveTabSession(page, SESSION_FILE);
 });

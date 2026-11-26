@@ -13,7 +13,7 @@
  *
  * Auth: relies on the project-level auth.setup.ts storageState (auth.json).
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { getDigitToken } from '../utils/auth';
 import { BASE_URL, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
 
@@ -120,12 +120,12 @@ Steps:
 2. For each tab name in ['Brand & Surface', 'Text', 'Buttons', 'Inputs', 'Header & Sidebar', 'Status', 'Tables & Misc', 'Charts'] (the ThemeConfig descriptor's non-Identity groups), assert the matching role=tab is visible (within 30s).
 3. Assert at least one element with [data-token] (the live preview marker) is visible within 10s.
 
-Uses the auth.setup.ts storageState — admin token already in localStorage.`,
+Uses the auth.setup.ts session — admin token replayed into sessionStorage by utils/session-test.ts.`,
   },
   tag: ['@area:configurator-manage', '@area:theme', '@kind:regression', '@layer:ui', '@persona:admin'] }, async ({ page }) => {
   test.setTimeout(90_000);
 
-  // storageState from auth.setup already has the session in localStorage;
+  // auth.setup's session is replayed into sessionStorage (utils/session-test.ts);
   // go straight to the edit URL.
   await page.goto(`/configurator/manage/theme-config/${THEME_RECORD_ID}/edit`, {
     waitUntil: 'domcontentloaded',

@@ -19,7 +19,7 @@
  * repeat runs don't collide, but operators should periodically prune
  * `PW_*` hierarchies via direct DB cleanup before Nairobi go-live.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { loadAuth } from '../utils/manage/api';
 import { testCode } from '../utils/manage/codes';
 import { ROOT_TENANT } from '../utils/env';
@@ -205,7 +205,7 @@ Teardown is logging-only — boundary service has no _delete endpoint. PW_<hash>
 
     // And in the list.
     await page.goto(LIST_PATH);
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(hierarchyType);
+    await page.getByPlaceholder(/search/i).first().fill(hierarchyType);
     await page.waitForLoadState('networkidle').catch(() => {});
     await expect(
       page.getByRole('row').filter({ hasText: hierarchyType }).first(),
@@ -240,7 +240,7 @@ Skips three UI interactions by API-seeding — UI is the test subject for show, 
     expect([200, 201, 202]).toContain(status);
 
     await page.goto(LIST_PATH);
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(hierarchyType);
+    await page.getByPlaceholder(/search/i).first().fill(hierarchyType);
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.getByRole('row').filter({ hasText: hierarchyType }).first().click();
 

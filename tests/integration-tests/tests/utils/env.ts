@@ -88,16 +88,51 @@ function splitList(raw: string): string[] {
  */
 export const BASE_URL = process.env.BASE_URL || 'http://localhost';
 export const TENANT = process.env.DIGIT_TENANT || PROFILE?.tenant.city || 'ke.nairobi';
-// TENANT_CODE / ADMIN_USER / ADMIN_PASSWORD are the names some deploy/*.env files
-// (pg, maputo-local) set; accepting them here keeps one admin identity for every caller.
+/**
+ * One admin credential family. DIGIT_USERNAME / DIGIT_PASSWORD / ROOT_TENANT are
+ * canonical. ADMIN_USER / ADMIN_PASSWORD (and pgr-idgen's ADMIN_PASS) /
+ * TENANT_CODE are DEPRECATED aliases, kept so older env files still work: the
+ * configurator login (auth.setup.ts) used to read them directly while everything
+ * else read the DIGIT_* names, so a deployment had to set the same admin twice.
+ * Every reader now imports these constants instead of touching process.env.
+ */
 export const ROOT_TENANT =
   process.env.ROOT_TENANT ||
   process.env.TENANT_CODE ||
   PROFILE?.tenant.root ||
   (TENANT.includes('.') ? TENANT.split('.')[0] : TENANT);
 export const ADMIN_USER = process.env.DIGIT_USERNAME || process.env.ADMIN_USER || 'ADMIN';
-export const ADMIN_PASS = process.env.DIGIT_PASSWORD || process.env.ADMIN_PASSWORD || 'eGov@123';
+export const ADMIN_PASS =
+  process.env.DIGIT_PASSWORD || process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || 'eGov@123';
+/** Citizen OTP when no OTP_SINK_URL is configured — see utils/otp.ts. */
 export const FIXED_OTP = process.env.FIXED_OTP || '123456';
+/**
+ * Test-only SMS sink the deployment delivers citizen OTPs to. Set → every
+ * citizen OTP is read from it (utils/otp.ts); unset → FIXED_OTP is used.
+ */
+export const OTP_SINK_URL = (process.env.OTP_SINK_URL || '').replace(/\/+$/, '');
+
+/**
+ * Shape of a complaint (service request) id on this deployment. Formats differ
+ * per implementation (e.g. NCCG-PGR-2026-04-13-000848, CMS-2026-000023), so it
+ * is a setting: COMPLAINT_ID_PATTERN in config.env. Default: any upper-case
+ * letters, the year, and a sequence of any length.
+ */
+export const COMPLAINT_ID_PATTERN = new RegExp(process.env.COMPLAINT_ID_PATTERN || '^[A-Z]+-\\d{4}-\\d+$');
+
+/** True on a `session-checks` run (ci/run-suite.sh); see playwright.config.ts. */
+export const RUN_SESSION_CHECKS = process.env.RUN_SESSION_CHECKS === '1';
+
+/**
+ * Inactivity limit, in seconds (session checks, @2.12_session_checks). The
+ * product default is 15 minutes, which is what production runs; a test
+ * environment with a shorter limit sets SESSION_IDLE_LIMIT_SECONDS in its
+ * config.env (e.g. 180).
+ */
+export const SESSION_IDLE_LIMIT_SECONDS = Number(process.env.SESSION_IDLE_LIMIT_SECONDS || 900);
+/** The "Stay signed in / Log out" pop-up always appears this long before the limit. Not configurable. */
+export const SESSION_IDLE_WARNING_SECONDS = 60;
+
 /**
  * The complaint type + boundary leaf every seeded complaint is filed against.
  * The profile does not just echo a config value here: pgr.seedServiceCode is the
@@ -147,6 +182,15 @@ export const EMPLOYEE_TENANT =
  */
 export const GRO_USER = process.env.GRO_USER || ADMIN_USER;
 export const GRO_PASS = process.env.GRO_PASSWORD || ADMIN_PASS;
+
+/**
+ * City admin — an employee at the complaint's tenant who can act on complaints
+ * from the employee UI. Empty when unset (no fallback to ADMIN): the session
+ * checks use it for the workflow pages and log it out, which must never end the
+ * admin's shared session. Specs that are happy with ADMIN fall back themselves.
+ */
+export const CITY_ADMIN_USER = process.env.CITY_ADMIN_USER || '';
+export const CITY_ADMIN_PASS = process.env.CITY_ADMIN_PASS || '';
 
 /** Ward-scoped CSR for boundary jurisdiction-filter regression. */
 export const WARD_CSR_USER = process.env.WARD_CSR_USER || 'BOMET_CSR_CHESOEN_1780282462';
@@ -203,6 +247,8 @@ export const CITY_TENANT = process.env.CITY_TENANT || PROFILE?.tenant.city || 'k
 export const KC_REALM = process.env.KC_REALM || ROOT_TENANT;
 export const KC_CLIENT_ID = process.env.KC_CLIENT_ID || 'digit-ui';
 export const KC_BASE = process.env.KC_BASE || `${BASE_URL}/auth`;
+export const TOKEN_EXCHANGE_BASE = process.env.TOKEN_EXCHANGE_BASE || `${BASE_URL}/token-exchange`;
+export const CITIZEN_BASENAME = process.env.CITIZEN_BASENAME || '/citizen';
 
 // ── Citizen-spec deployment parameters ──────────────────────────────────────
 // Additive vars owned by the citizen suite. Each defaults to a stock value so a
@@ -234,22 +280,6 @@ export const LOCALES = process.env.LOCALES
   : PROFILE?.locales.length
     ? PROFILE.locales
     : ['en_IN'];
-
-/**
- * Checks the UI's default language: the text the citizen header's language
- * pill shows before anyone changes it, copied exactly as it appears on screen
- * (for example "English", or "en" as on nairobi). Not a locale code such as
- * en_IN. Set CITIZEN_LANGUAGE_PILL_TEXT in the environment's config.env.
- */
-export const CITIZEN_LANGUAGE_PILL_TEXT = process.env.CITIZEN_LANGUAGE_PILL_TEXT || 'English';
-
-/**
- * The name a citizen gets on first OTP sign-in, before they set one, copied
- * exactly as the app stores it (for example "Citizen" on DIGIT 3.0). Unset
- * means the citizen's phone number, the older default. Set
- * CITIZEN_DEFAULT_NAME in the environment's config.env.
- */
-export const CITIZEN_DEFAULT_NAME = process.env.CITIZEN_DEFAULT_NAME || '';
 
 /**
  * Postal-code validation pattern + a known-valid sample for this deployment,

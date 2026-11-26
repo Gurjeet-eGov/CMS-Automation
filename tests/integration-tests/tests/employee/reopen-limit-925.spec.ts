@@ -1,5 +1,4 @@
-import { tenantSlug } from '../utils/identity-bff';
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page } from '../utils/session-test';
 import { loginViaApi } from "../utils/auth";
 import { BASE_URL, TENANT, EMPLOYEE_TENANT, EMPLOYEE_USER, EMPLOYEE_PASS } from "../utils/env";
 
@@ -154,7 +153,7 @@ async function selectReopen(page: Page) {
     userType: "EMPLOYEE",
   });
 
-  // loginViaApi only seeds localStorage, but Digit.UserService.getUser() reads the
+  // loginViaApi seeds Digit.User too (session-storage.ts); kept as is — Digit.UserService.getUser() reads the
   // "Digit.User" SessionStorage envelope ({value, ttl, expiry}) — and the details page gates
   // its action bar on those roles. Without this the Take Action button never renders.
   await page.evaluate(
@@ -171,7 +170,7 @@ async function selectReopen(page: Page) {
     { info: tokenResponse.UserRequest ?? {}, token: tokenResponse.access_token }
   );
 
-  await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${COMPLAINT_ID}`);
+  await page.goto(`${BASE_URL}/digit-ui/employee/pgr/complaint-details/${COMPLAINT_ID}`);
   await page.waitForLoadState("networkidle");
 
   // Label is localisation-driven; an env without the key seeded renders the raw key.

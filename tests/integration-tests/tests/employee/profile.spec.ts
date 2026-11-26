@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Employee profile — country prefix regression (CCRS #444 sub-1).
  *
@@ -19,7 +18,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * ADMIN is a shared principal and we don't want a passing test to
  * mutate their profile.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 
 import { BASE_URL, TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
 import { getMobileValidationRule } from '../utils/mdms-mobile';
@@ -54,7 +53,7 @@ Deliberately stops short of submitting the form — ADMIN is a shared principal 
     const expectedPrefix = MOBILE_PREFIX_OVERRIDE || rule?.prefix || null;
 
     // The profile route is behind PrivateRoute in the digit-ui EMPLOYEE shell,
-    // which reads its own `Employee.token` from localStorage — the suite-wide
+    // which reads its own `Employee.token` from sessionStorage — the suite-wide
     // auth.json only carries the *configurator* session, so a bare navigation
     // lands on the shell's login / language-selection gate and #profile-mobile
     // never mounts. Inject an employee session (ADMIN — always present after
@@ -65,7 +64,7 @@ Deliberately stops short of submitting the form — ADMIN is a shared principal 
       password: ADMIN_PASS,
     });
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/user/profile`, {
+    await page.goto(`${BASE_URL}/digit-ui/employee/user/profile`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

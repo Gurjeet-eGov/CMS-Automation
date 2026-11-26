@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Employee PGR Complaint Details — Flow 5 render slice (operational scope).
  *
@@ -18,10 +17,10 @@ import { tenantSlug } from '../utils/identity-bff';
  *   5.24b — Take Action button VISIBLE when complaint is non-terminal
  *           (PENDINGFORASSIGNMENT).
  *
- * Auth: bypasses OTP via `loginViaApi` (ROPC token → seeded localStorage).
+ * Auth: bypasses OTP via `loginViaApi` (ROPC token → seeded sessionStorage).
  * Fixtures: two persistent complaint IDs on naipepea, override via env.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { loginViaApi } from '../utils/auth';
 import { BASE_URL, TENANT } from '../utils/env';
 import { getPersona } from '../utils/personas';
@@ -112,7 +111,7 @@ async function openDetails(page: Page, srid: string, skipReason: string): Promis
 
   const employee = await getPersona('inbox-viewer'); // needs nextActions (GRO+jurisdiction) for the 5.24b Take-Action gate
   await loginViaApi(page, {
-    // `tenant` is what gets injected into Employee.* localStorage (the
+    // `tenant` is what gets injected into Employee.* sessionStorage (the
     // complaint's own tenant, so pgr-services/workflow calls resolve
     // correctly); `authTenant` is where the OAuth call itself is aimed.
     // They can differ — loginViaApi defaults authTenant to root-derived-
@@ -126,7 +125,7 @@ async function openDetails(page: Page, srid: string, skipReason: string): Promis
   });
 
   await page.goto(
-    `${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${srid}`,
+    `${BASE_URL}/digit-ui/employee/pgr/complaint-details/${srid}`,
     { waitUntil: 'domcontentloaded', timeout: 30_000 },
   );
 
@@ -337,7 +336,7 @@ test.describe('PGR complaint details — Flow 5 render slice', () => {
       }),
     );
     const locationHeading = () =>
-      page.getByText(/^(Complaint(?:'s)? Location|CS_COMPLAINT_LOCATION)$/i, { exact: true });
+      page.getByText(/^(Complaint Location|CS_COMPLAINT_LOCATION)$/i, { exact: true });
     const locationMarker = () => page.locator('.leaflet-container .leaflet-marker-icon');
 
     await openDetails(page, missingId, 'fresh no-location fixture creation failed');

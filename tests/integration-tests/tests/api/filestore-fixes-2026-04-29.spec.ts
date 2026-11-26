@@ -1,5 +1,5 @@
 // #474 filestore upload. Deterministic repro via direct API.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { loginEmployee, uploadFile } from '../utils/launch-fixes/api.js';
 import { ROOT_TENANT } from '../utils/env';
 

@@ -5,10 +5,10 @@
  * exists to verify the helper's contract independently against a live
  * deployment.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session-test';
 import { provisionFreshCitizen } from './citizen-provision';
 import { getMobileValidationRule } from './mdms-mobile';
-import { BASE_URL, TENANT } from './env';
+import { TENANT } from './env';
 
 test('provisionFreshCitizen returns identity matching MDMS rule + working token', { tag: ['@persona:citizen'] }, async () => {
   const citizen = await provisionFreshCitizen();
@@ -33,7 +33,7 @@ test('provisionFreshCitizen returns identity matching MDMS rule + working token'
   }
 
   // Token works: a basic authenticated round-trip should succeed.
-  const probe = await fetch(`${BASE_URL}/user/_search`, {
+  const probe = await fetch(`${process.env.BASE_URL || 'https://naipepea.digit.org'}/user/_search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

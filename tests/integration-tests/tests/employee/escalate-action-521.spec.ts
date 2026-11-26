@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Employee — manual Escalate action end-to-end (CCRS #521).
  *
@@ -25,7 +24,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * is at PENDINGATLME. If seeding fails, the test self-skips with a clear reason
  * rather than pointing at a dead fixture.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { requires, isPresent } from '../utils/capabilities';
 import { getPersona, resolveSeedPlan } from '../utils/personas';
 import { seedComplaintAsCitizen, driveToPendingAtLme } from '../utils/seed';
@@ -194,7 +193,7 @@ test.describe('employee — manual Escalate action #521', () => {
 
     // ============ Open the assigned complaint detail ============
     await page.goto(
-      `${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${COMPLAINT_ID}`,
+      `${BASE_URL}/digit-ui/employee/pgr/complaint-details/${COMPLAINT_ID}`,
       { waitUntil: 'domcontentloaded', timeout: 30_000 },
     );
     await page.locator('.digit-viewcard-field-pair, .v2-pgr-details').first()

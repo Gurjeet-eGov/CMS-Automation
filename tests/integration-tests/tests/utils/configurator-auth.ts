@@ -1,109 +1,59 @@
 /**
- * Configurator auth helper — injects session into localStorage.
+ * Configurator auth helper — injects the session into the tab's sessionStorage.
  *
- * The CRS Configurator uses its own auth state format in localStorage
- * under key 'crs-auth-state'. This helper completes hosted BFF sign-in, then
- * installs its selected context for management tests.
+ * The CRS Configurator keeps its auth state under key 'crs-auth-state'. On
+ * builds with per-tab sessions that lives in sessionStorage (one tab);
+ * a localStorage copy is deprecated and is removed here. This helper acquires a
+ * DIGIT token via API and injects it so we bypass the configurator login form
+ * entirely — for THIS page only; a new tab starts signed out.
  */
-import { expect, type Page } from '@playwright/test';
-import { staffContext } from './auth';
-import { tenantCaseWorkaround } from './identity-bff';
+import type { Page } from '@playwright/test';
+import { getDigitToken } from './auth';
 import { BASE_URL, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from './env';
+import { CONFIGURATOR_SESSION_KEY, writeTabSession } from './session-storage';
 
 const CONFIGURATOR_BASE = process.env.CONFIGURATOR_BASE_URL || `${BASE_URL}/configurator`;
 
 export { CONFIGURATOR_BASE };
 
-/**
- * `form`: the legacy username / password / tenant form.
- * `hosted`: the hosted sign-in (#2107), which hands off to Keycloak through
- * identity-bff and has no credential fields of its own.
- */
-export type ConfiguratorLogin = 'form' | 'hosted';
-
-/**
- * Opens /configurator/login (relative to the project's baseURL, like every spec)
- * and reports which login it serves, leaving the page there. Only a positive
- * marker counts: the form's #username, or hosted sign-in's "Log in" button or
- * (already signed in) workspace chooser. "Hosted sign-in is not enabled" means identity-bff's
- * session / auth-methods call failed (or offers no password method), so it fails
- * loudly instead of passing for a hosted build.
- */
-export async function detectConfiguratorLogin(page: Page): Promise<ConfiguratorLogin> {
-  await page.goto('/configurator/login', { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  const form = page.locator('#username');
-  const hosted = page
-    .getByRole('button', { name: /^Log in$/ })
-    // already signed in through identity-bff: the workspace chooser (`tenants` phase)
-    .or(page.getByRole('heading', { name: /^(Choose a workspace|No workspace access yet)$/ }));
-  const disabled = page.getByText(/Hosted sign-in is not enabled/i);
-  await expect(form.or(hosted).or(disabled).first()).toBeVisible({ timeout: 20_000 });
-  if (await form.count()) return 'form';
-  if (await hosted.count()) return 'hosted';
-  throw new Error(
-    'configurator login says "Hosted sign-in is not enabled on this environment": identity-bff ' +
-      '(/identity/v1/session or /identity/v1/auth-methods) failed or offers no password method',
-  );
-}
-
-/**
- * Seeds the configurator session the way configurator/src/lib/session.ts
- * installDigitContext() does after hosted sign-in — keep the two in step — with the
- * DIGIT context selected after hosted sign-in, then opens /manage.
- */
-export async function loginConfigurator(page: Page): Promise<void> {
-  const tokenResponse = await staffContext(page, {
+/** Sign `who` (default: the admin) in to the configurator by injecting a session into this tab. */
+export async function loginConfigurator(page: Page, who?: { user: string; pass: string }): Promise<void> {
+  const tokenResponse = await getDigitToken({
     tenant: ROOT_TENANT,
-    username: ADMIN_USER,
-    password: ADMIN_PASS,
-  }, 'configurator');
+    username: who?.user ?? ADMIN_USER,
+    password: who?.pass ?? ADMIN_PASS,
+  });
 
-  const user = tokenResponse.UserRequest as Record<string, unknown> | undefined;
+  const user = (tokenResponse.UserRequest as Record<string, unknown> | undefined) || {};
+  const roles = (user.roles as Array<{ code: string }>) || [];
 
-  // TEMPORARY (egovernments/complaint-management-system#84, see tenantCaseWorkaround):
-  // with TENANT_CASE_WORKAROUND=true, store the selected workspace tenant
-  // lower-cased, as the Configurator UI does after sign-in, instead of the
-  // upper-case tenant such a workspace's sign-in returns. Off: the tenant as returned.
-  const sessionTenant = tenantCaseWorkaround() ? ROOT_TENANT.trim().toLowerCase() : null;
-
-  // Navigate to configurator first so we can set localStorage on its origin
+  // Navigate to configurator first so we can write storage on its origin
   await page.goto(CONFIGURATOR_BASE, {
     waitUntil: 'domcontentloaded',
     timeout: 30_000,
   });
 
-  await page.evaluate(
-    ({ token, userObj, apiOrigin, sessionTenant }) => {
-      const roles = (userObj?.roles as Array<{ code: string }>) || [];
-      const tenant = sessionTenant ?? (userObj?.tenantId as string);
-      localStorage.setItem(
-        'crs-auth-state',
-        JSON.stringify({
-          isAuthenticated: true,
-          user: {
-            name: (userObj?.name as string) || (userObj?.userName as string),
-            email: (userObj?.emailId as string) || '',
-            roles: roles.map((r) => r.code),
-            uuid: userObj?.uuid,
-            id: userObj?.id,
-            mobileNumber: userObj?.mobileNumber,
-          },
-          environment: apiOrigin,
-          tenant,
-          targetTenant: tenant,
-          currentPhase: 5,
-          completedPhases: [1, 2, 3, 4, 5],
-          authToken: token,
-        }),
-      );
-    },
-    {
-      token: tokenResponse.access_token,
-      userObj: user || {},
-      apiOrigin: new URL(BASE_URL).origin, // installDigitContext: API_ORIGIN || window.location.origin
-      sessionTenant,
-    },
-  );
+  // The configurator's auth-state format. It carries authToken, so it is
+  // token-bearing: sessionStorage only.
+  await writeTabSession(page, {
+      [CONFIGURATOR_SESSION_KEY]: JSON.stringify({
+        isAuthenticated: true,
+        user: {
+          name: (user.name as string) || 'Super Admin',
+          email: (user.emailId as string) || '',
+          roles: roles.map((r) => r.code),
+          id: user.id,
+          uuid: user.uuid,
+          mobileNumber: user.mobileNumber,
+        },
+        environment: BASE_URL, // The DIGIT API base (not the configurator path)
+        tenant: ROOT_TENANT,
+        mode: 'management',
+        currentPhase: 1,
+        completedPhases: [],
+        authToken: tokenResponse.access_token,
+      }),
+  });
 
   // Reload to pick up the injected session — should land on /manage
   await page.goto(`${CONFIGURATOR_BASE}/manage`, {

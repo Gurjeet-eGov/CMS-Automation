@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * PGR Postal Code Validation — Employee Create Complaint
  *
@@ -9,7 +8,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * Tests the employee-side complaint creation form at
  *   /digit-ui/employee/pgr/create-complaint
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { loginEmployeeBrowser } from '../utils/employee-ui';
 import {
   BASE_URL, ADMIN_USER, ADMIN_PASS, POSTAL_CODE_VALID, POSTAL_CODE_PATTERN,
@@ -37,7 +36,7 @@ const CITY_ADMIN_PASS = process.env.CITY_ADMIN_PASS || ADMIN_PASS;
 // the profile reads the pattern out of the SPA's own globalConfigs. So these
 // specs compare the form to its own config.
 
-const identityCreateUrl = () => `${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/create-complaint`;
+const CREATE_URL = `${BASE_URL}/digit-ui/employee/pgr/create-complaint`;
 
 /**
  * Derive postal samples the DEPLOYMENT's own pattern rejects, so the negative
@@ -192,7 +191,7 @@ async function submitForm(page: Page): Promise<void> {
 
 /** Log in, open the create-complaint form, and return its postal input. */
 async function openCreateComplaint(page: Page) {
-  await page.goto(identityCreateUrl(), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.goto(CREATE_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   const postalInput = page.locator('input[name="postalCode"]');
   await expect(postalInput).toBeVisible({ timeout: 30_000 });
   // The field's container must resolve, or every scoped assertion below would be
@@ -206,7 +205,7 @@ test.describe('PGR Postal Code Validation (#478)', () => {
     // loginEmployeeBrowser probes CITY→ROOT for whichever tenant accepts the
     // credentials: a real city employee (EMP001 on mz.maputo) authenticates at
     // the CITY tenant, ADMIN at the ROOT tenant. It injects the token into the
-    // Employee.* localStorage keys and lands on /employee.
+    // Employee.* sessionStorage keys and lands on /employee.
     const tok = await loginEmployeeBrowser(page, CITY_ADMIN_USER, CITY_ADMIN_PASS);
     expect(tok, `city admin ${CITY_ADMIN_USER} must authenticate (tried CITY + ROOT tenants)`).toBeTruthy();
   });

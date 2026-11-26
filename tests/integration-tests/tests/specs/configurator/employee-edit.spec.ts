@@ -5,7 +5,7 @@
  *   #476 — auditDetails preserved in assignments/jurisdictions on edit
  *          (prevents NPE when HRMS calls assignment.getAuditDetails().setLastModifiedBy())
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../utils/session-test';
 import { loginConfigurator, CONFIGURATOR_BASE } from '../../utils/configurator-auth';
 
 test.describe('Employee Edit (#476)', () => {

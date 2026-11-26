@@ -11,7 +11,7 @@
  * fetched from MDMS via `getMobileValidationRule(TENANT)`; tests assert on
  * `rule.errorMessage` rather than literal Kenya copy.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { BASE_URL, TENANT } from '../utils/env';
 import {
   getMobileValidationRule,

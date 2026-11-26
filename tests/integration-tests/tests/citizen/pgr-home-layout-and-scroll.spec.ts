@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Regression tests for citizen-side bugs fixed in theflywheel/digit-ui-esbuild.
  * Each test references the egovernments/CCRS issue it covers.
@@ -13,7 +12,7 @@ import { tenantSlug } from '../utils/identity-bff';
  *          and drive it to RESOLVED, so the throwaway complaint this test
  *          submits a rating for is created per run and owned by us.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { citizenOtpLogin } from '../utils/citizen-login';
 import { seedComplaintAsCitizen, driveToPendingAtLme, driveToResolved } from '../utils/seed';
 import { BASE_URL } from '../utils/env';
@@ -154,7 +153,7 @@ Unlike rate-resolved-complaint.spec.ts this test DOES submit — the complaint i
       await driveToResolved(srid);
 
       await citizenOtpLogin(page);
-      await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr/rate/${srid}`, {
+      await page.goto(`${BASE_URL}/digit-ui/citizen/pgr/rate/${srid}`, {
         waitUntil: 'domcontentloaded',
         timeout: 30_000,
       });

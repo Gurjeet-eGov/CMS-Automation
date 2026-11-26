@@ -9,9 +9,8 @@
  *
  * The token is never logged, even when DEBUG is set.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { getDigitToken } from '../auth';
 import { TENANT, BASE_URL, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from '../env';
 
 export interface AuthInfo {
@@ -41,16 +40,27 @@ interface StorageState {
 
 const DEFAULT_AUTH_FILE = path.resolve('auth.json');
 
-/** Lift the configurator's stored session out of the storageState file. */
+/**
+ * Lift the configurator's stored session out of what the `setup` project saved.
+ *
+ * The configurator keeps `crs-auth-state` in sessionStorage (localStorage
+ * tokens are deprecated), and storageState cannot hold sessionStorage, so
+ * auth.setup.ts saves that half to auth-session.json beside auth.json. Read
+ * that first; the storageState's localStorage is only a fallback for older
+ * builds.
+ */
 export function loadAuth(authFile: string = DEFAULT_AUTH_FILE): AuthInfo {
-  const raw = readFileSync(authFile, 'utf-8');
-  const state = JSON.parse(raw) as StorageState;
+  const candidates: Array<{ name: string; value: string }> = [];
+  const sessionFile = authFile.replace(/\.json$/, '') + '-session.json';
+  if (existsSync(sessionFile)) {
+    const saved = JSON.parse(readFileSync(sessionFile, 'utf-8')) as { entries?: Record<string, string> };
+    for (const [name, value] of Object.entries(saved.entries || {})) candidates.push({ name, value });
+  }
+  const state = JSON.parse(readFileSync(authFile, 'utf-8')) as StorageState;
+  for (const origin of state.origins || []) candidates.push(...(origin.localStorage || []));
 
-  for (const origin of state.origins || []) {
-    const item = (origin.localStorage || []).find(
-      (entry) => entry.name === 'crs-auth-state',
-    );
-    if (!item) continue;
+  const item = candidates.find((entry) => entry.name === 'crs-auth-state');
+  if (item) {
     const parsed = JSON.parse(item.value) as {
       authToken?: string;
       user?: Record<string, unknown>;
@@ -78,15 +88,49 @@ export function loadAuth(authFile: string = DEFAULT_AUTH_FILE): AuthInfo {
   }
 
   throw new Error(
-    `No crs-auth-state localStorage entry found in ${authFile}. ` +
+    `No crs-auth-state entry found in ${sessionFile} or ${authFile}. ` +
     'Did the auth.setup.ts setup project run?',
   );
 }
 
-/** Obtain a fresh BFF-selected operator context for API assertions and teardown. */
+/**
+ * Obtain a FRESH, fully-resolved API token via a direct OAuth password grant
+ * (ADMIN@ROOT_TENANT). Use this — not loadAuth() — for API assertions/teardown
+ * that hit RBAC-ENFORCED endpoints (e.g. /user/_search, /user/users/_*).
+ *
+ * Why: the configurator storageState token (loadAuth) resolves to INSUFFICIENT
+ * roles on a fail-closed gateway. The k8s Spring gateway RBAC-checks /user/_search
+ * against the token's *resolved* roles and returns 401 ("not authorized"), so the
+ * `create — citizen user` verify step fails on k3s while passing on Compose (whose
+ * Kong treats /user/_search as auth-optional). A password-grant login resolves the
+ * operator's real roles (SUPERUSER/EMPLOYEE — both granted /user/_search), so the
+ * check passes on BOTH stacks. The UI create flow still uses the configurator
+ * session; only the API verify/teardown uses this token. Refs #1160.
+ */
 export async function apiAuth(): Promise<AuthInfo> {
-  const context = await getDigitToken({ tenant: ROOT_TENANT, username: ADMIN_USER, password: ADMIN_PASS });
-  return { token: context.access_token, user: context.UserRequest || null, tenant: ROOT_TENANT, baseUrl: BASE_URL };
+  // One admin family and one tenant chain, from env.ts (env var -> profile -> floor).
+  const baseUrl = BASE_URL;
+  const rootTenant = ROOT_TENANT;
+  const body = new URLSearchParams({
+    username: ADMIN_USER,
+    password: ADMIN_PASS,
+    grant_type: 'password',
+    scope: 'read',
+    tenantId: rootTenant,
+    userType: 'EMPLOYEE',
+  });
+  const res = await fetch(`${baseUrl}/user/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      // egov-user-client:(no secret) — the stock DIGIT OAuth basic header
+      Authorization: 'Basic ZWdvdi11c2VyLWNsaWVudDo=',
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`apiAuth OAuth login failed (${res.status}): ${await res.text()}`);
+  const j = (await res.json()) as { access_token: string; UserRequest?: Record<string, unknown> };
+  return { token: j.access_token, user: j.UserRequest || null, tenant: rootTenant, baseUrl };
 }
 
 export function buildRequestInfo(auth: AuthInfo, action?: string): Record<string, unknown> {

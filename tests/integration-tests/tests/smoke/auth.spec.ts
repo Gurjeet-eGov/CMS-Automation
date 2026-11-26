@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { loginEmployee } from '../utils/launch-fixes/api.js';
 
 test.describe('00-smoke: auth helper', () => {

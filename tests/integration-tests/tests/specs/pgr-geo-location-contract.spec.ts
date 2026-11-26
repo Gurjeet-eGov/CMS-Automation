@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 // Production PGR helper is intentionally plain JavaScript; exercise the exact
 // predicate/serializer used by citizen details, employee details, and both
 // create payloads instead of copying its rules into the test suite.

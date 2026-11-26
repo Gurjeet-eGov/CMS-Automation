@@ -10,19 +10,18 @@
  *
  * Run: npx playwright test tests/specs/pgr-lifecycle-api.spec.ts
  */
-import { test, expect, request as playwrightRequest } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { getDigitToken } from '../utils/auth';
-import { citizenSignIn } from '../utils/identity-bff';
 import { getPrincipal } from '../utils/employee-ui';
 import { resolvePersona, resolveSeedPlan } from '../utils/personas';
 import {
   BASE_URL, TENANT, ROOT_TENANT,
-  ADMIN_USER, ADMIN_PASS, FIXED_OTP,
+  ADMIN_USER, ADMIN_PASS,
   DEFAULT_PASSWORD,
   GRO_USER, GRO_PASS, EMPLOYEE_USER, EMPLOYEE_PASS,
   SERVICE_CODE, LOCALITY_CODE,
   generateCitizenPhone,
-} from '../utils/env';
+} from '../utils/env'; import { resolveCitizenOtp } from '../utils/otp';
 
 const CITIZEN_PHONE = generateCitizenPhone();
 const CITIZEN_NAME = 'E2E API Citizen';
@@ -41,13 +40,67 @@ async function fetchComplaint(token: string, userInfo: Record<string, unknown>, 
   return data.ServiceWrappers[0].service;
 }
 
-/** Provision by BFF phone possession; never retry with a native password. */
+/** Register a citizen via OTP flow and return token. */
 async function registerCitizen(phone: string): Promise<{ token: string; userInfo: Record<string, unknown> }> {
-  const request = await playwrightRequest.newContext();
-  try {
-    const context = await citizenSignIn(request, BASE_URL, phone);
-    return { token: context.access_token, userInfo: context.UserRequest };
-  } finally { await request.dispose(); }
+  const otpSentAt = Date.now(); // send OTP; utils/otp.ts resolves it (SMS sink, else FIXED_OTP)
+  await fetch(`${BASE_URL}/user-otp/v1/_send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      otp: { mobileNumber: phone, tenantId: ROOT_TENANT, type: 'login', userType: 'CITIZEN' },
+    }),
+  });
+
+  const otp = await resolveCitizenOtp(phone, otpSentAt); // try login first (citizen may already exist)
+  let resp = await fetch(`${BASE_URL}/user/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: 'Basic ZWdvdi11c2VyLWNsaWVudDo=',
+    },
+    body: new URLSearchParams({
+      grant_type: 'password', username: phone, password: otp,
+      tenantId: ROOT_TENANT, scope: 'read', userType: 'CITIZEN',
+    }).toString(),
+  });
+
+  if (!resp.ok) {
+    // Register with a valid password (DIGIT requires 8+ chars with upper/lower/digit/special).
+    // The otpReference validates against the mock OTP service.
+    // After registration, OAuth login uses the OTP as password for CITIZEN userType.
+    await fetch(`${BASE_URL}/user/citizen/_create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        RequestInfo: { apiId: 'Rainmaker' },
+        user: {
+          name: CITIZEN_NAME,
+          userName: phone,
+          mobileNumber: phone,
+          password: DEFAULT_PASSWORD,
+          tenantId: ROOT_TENANT,
+          type: 'CITIZEN',
+          roles: [{ code: 'CITIZEN', name: 'Citizen', tenantId: ROOT_TENANT }],
+          otpReference: otp,
+        },
+      }),
+    });
+
+    resp = await fetch(`${BASE_URL}/user/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: 'Basic ZWdvdi11c2VyLWNsaWVudDo=',
+      },
+      body: new URLSearchParams({
+        grant_type: 'password', username: phone, password: otp,
+        tenantId: ROOT_TENANT, scope: 'read', userType: 'CITIZEN',
+      }).toString(),
+    });
+  }
+
+  const data: any = await resp.json();
+  return { token: data.access_token, userInfo: data.UserRequest };
 }
 
 test.describe.serial('PGR lifecycle — API only', () => {
@@ -177,7 +230,7 @@ Steps:
 4. Stash data.ServiceWrappers[0].service.serviceRequestId.
 5. Assert applicationStatus === 'PENDINGFORASSIGNMENT'.
 
-geoLocation is intentionally set to {} — non-null is the contract (null drops the complaint in the persister), and {} is stored as no location (#1581).`,
+geoLocation is intentionally set to {0,0} — non-null is the contract; the actual coordinates don't matter for this lifecycle.`,
     },
     tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross'] }, async () => {
     const resp = await fetch(`${BASE_URL}/pgr-services/v2/request/_create`, {
@@ -193,7 +246,7 @@ geoLocation is intentionally set to {} — non-null is the contract (null drops 
           address: {
             city: TENANT,
             locality: { code: LOCALITY_CODE },
-            geoLocation: {},
+            geoLocation: { latitude: 0, longitude: 0 },
           },
           citizen: { name: CITIZEN_NAME, mobileNumber: CITIZEN_PHONE },
         },

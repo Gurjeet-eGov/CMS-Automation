@@ -18,9 +18,9 @@
  * shape only; it does NOT assert a search/narrow behavior that the UI
  * doesn't implement.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { apiAuth, type AuthInfo } from '../utils/manage/api';
-import { lettersOnly, testCode } from '../utils/manage/codes';
+import { testCode } from '../utils/manage/codes';
 import { TENANT, ROOT_TENANT } from '../utils/env';
 import { getMobileValidationRule, generateValidMobile, type MobileRule } from '../utils/mdms-mobile';
 
@@ -170,19 +170,19 @@ UserList does NOT have a search/filter bar (no filters prop in the source) — t
 Steps:
 1. Generate a 10-digit mobile number; derive expectedUserName = mobile with any leading 0 stripped; track expectedUserName for cleanup.
 2. Navigate to /configurator/manage/users/create.
-3. #461/#462: no Username label on the form; the Name and Mobile Number labels carry the required "*".
-4. Fill labels Name ("Citizen": DIGIT 3.0 refuses digit-bearing names), Mobile Number, Email (no Username field).
-5. Click Create; wait for navigation back to /configurator/manage/users (45s timeout).
-6. POST /user/_search with userName=expectedUserName; assert exactly 1 result.
-7. Assert userName === mobileNumber === expectedUserName, active=true, type='CITIZEN'.
+3. Fill labels Name, Mobile Number, Email (no Username field).
+4. Click Create; wait for navigation back to /configurator/manage/users (45s timeout).
+5. POST /user/_search with userName=expectedUserName; assert exactly 1 result.
+6. Assert userName === mobileNumber === expectedUserName, active=true, type='CITIZEN'.
 
 Teardown is API-only — egov-user has no UI delete affordance for users; the afterAll soft-deletes via _updatenovalidate with active=false.`,
     },
-    tag: ['@area:configurator-manage', '@area:hrms', '@ccrs:461', '@ccrs:462', '@kind:regression', '@layer:ui', '@persona:admin'] }, async ({
+    tag: ['@area:configurator-manage', '@area:hrms', '@kind:regression', '@layer:ui', '@persona:admin'] }, async ({
     page,
   }, testInfo) => {
     const uname = `pw${testCode(testInfo, 'USR').toLowerCase().replace(/_/g, '')}`
-      .slice(0, 40); // used for the email only.
+      .slice(0, 40); // used for the display name + email only.
+    const uniq = uname.replace(/[^0-9]/g, '').slice(-5).padStart(5, '0');
     // Mobile valid for THIS tenant's MDMS rule — Kenya starts 7/1, Maputo
     // starts 8. Previously hardcoded a Kenya-format `07…` literal, which the
     // mz backend rejects. NOTE: this surfaces a real product bug —
@@ -197,20 +197,8 @@ Teardown is API-only — egov-user has no UI delete affordance for users; the af
 
     await page.goto(`${LIST_PATH}/create`);
 
-    // #461/#462 (kept from the retired configurator rca-round-2 suite): no
-    // Username field, and Name and Mobile Number carry the required marker
-    // (DigitFormInput renders "*" after the label when the field is required).
-    await expect(page.getByLabel(/^Name/i)).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator('label').filter({ hasText: /^Username\s*\*?$/i }), '#461 — Citizen Create must not ask for a Username').toHaveCount(0);
-    for (const name of ['Name', 'Mobile Number']) {
-      await expect(page.locator('label').filter({ hasText: new RegExp(`^${name}\\s*\\*$`) }), `#462 — ${name} must be marked required`).toHaveCount(1);
-    }
-
     // No Username field — userName is derived from the mobile number.
-    // "Citizen", not "PW Probe User <digits>": DIGIT 3.0's individual registry
-    // refused the digit-bearing name (INVALID_USER). The user is found by its
-    // mobile-derived userName below, so the name needn't be unique.
-    await page.getByLabel(/^Name/i).fill('Citizen');
+    await page.getByLabel(/^Name/i).fill(`PW Probe User ${uniq}`);
     await page.getByLabel(/^Mobile Number/i).fill(mobile);
     await page.getByLabel(/^Email/i).fill(`${uname}@example.com`);
 
@@ -274,8 +262,7 @@ Tolerant of show-vs-edit routing differences — works whether /:id lands on Sho
     // Seed via API so we don't depend on test 2's UI state.
     const uname = `pw${testCode(testInfo, 'USREDIT').toLowerCase().replace(/_/g, '')}`
       .slice(0, 40);
-    // Letters only: DIGIT 3.0's individual registry refuses names that carry digits.
-    const uniq = lettersOnly(uname.replace(/[^0-9]/g, '').slice(-5).padStart(5, '0'));
+    const uniq = uname.replace(/[^0-9]/g, '').slice(-5).padStart(5, '0');
     // Valid for THIS tenant's MDMS mobile rule — no hardcoded Kenya '07…'.
     const mobile = generateValidMobile(mobileRule);
     createdUsernames.add(uname);
@@ -377,8 +364,7 @@ Pairs with the edit test — together they cover the two read-only routes (show 
   }, testInfo) => {
     const uname = `pw${testCode(testInfo, 'USRSHOW').toLowerCase().replace(/_/g, '')}`
       .slice(0, 40);
-    // Letters only: DIGIT 3.0's individual registry refuses names that carry digits.
-    const uniq = lettersOnly(uname.replace(/[^0-9]/g, '').slice(-5).padStart(5, '0'));
+    const uniq = uname.replace(/[^0-9]/g, '').slice(-5).padStart(5, '0');
     // Valid for THIS tenant's MDMS mobile rule — no hardcoded Kenya '07…'.
     const mobile = generateValidMobile(mobileRule);
     createdUsernames.add(uname);

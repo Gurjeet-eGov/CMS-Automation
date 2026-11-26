@@ -10,7 +10,7 @@
  * assert on rule.errorMessage rather than literal "7 or 1" copy so the same
  * spec passes on bomet, india, or any other DIGIT deployment.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../utils/session-test';
 import { loginConfigurator, CONFIGURATOR_BASE } from '../../utils/configurator-auth';
 import { TENANT } from '../../utils/env';
 import {

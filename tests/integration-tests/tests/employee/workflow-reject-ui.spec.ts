@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Employee PGR REJECT driven through the real Take-Action UI
  * (TEST-COVERAGE-GAPS #7 — REJECT was untested at the UI/transition layer).
@@ -27,7 +26,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * Deployment-portable: self-skips when no GRO login is available or no
  * rejection reasons are seeded.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { BASE_URL, TENANT } from '../utils/env';
 import { resolveSeedPlan, type ResolvedPersona } from '../utils/personas';
 import { seedComplaintAsCitizen } from '../utils/seed';
@@ -105,7 +104,7 @@ test.describe('employee PGR REJECT through the Take-Action UI', () => {
 
     const ok = await loginEmployeeBrowser(page, actorUser, actorPass);
     test.skip(!ok, `login failed for ${actorUser}`);
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${srid}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.goto(`${BASE_URL}/digit-ui/employee/pgr/complaint-details/${srid}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.locator('.digit-viewcard-field-pair, .v2-pgr-details').first().waitFor({ state: 'visible', timeout: 30_000 });
     await page.waitForTimeout(3_000);
     expect(await apiStatus(reader!, srid)).toBe('PENDINGFORASSIGNMENT');

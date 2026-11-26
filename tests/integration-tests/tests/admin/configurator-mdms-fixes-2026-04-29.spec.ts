@@ -1,7 +1,7 @@
 // Verifications for the MDMS / configurator surface fixes. Pure API
 // tests where we can — the configurator just shells out to mdms-v2 with
 // the same payload shape we're checking here.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { loginEmployee, mdmsCreate, mdmsUpdate } from '../utils/launch-fixes/api.js';
 import { TENANT, ROOT_TENANT, BASE_URL } from '../utils/env';
 

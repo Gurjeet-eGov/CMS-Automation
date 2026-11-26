@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Citizen auxiliary surfaces — Stories 10.1, 10.2.
  *
@@ -16,7 +15,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * masking. Red on this spec is the visible signal that the bugs are
  * still open.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { citizenOtpLogin } from '../utils/citizen-login';
 import { BASE_URL } from '../utils/env';
 
@@ -37,7 +36,7 @@ No test.fail() masking — by design, a red here is the visible signal CCRS#12 i
     test.setTimeout(60_000);
     await citizenOtpLogin(page);
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr-faq`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/pgr-faq`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });
@@ -65,7 +64,7 @@ Pairs with the FAQ test — both pages are listed in CCRS#12 as the broken aux s
     test.setTimeout(60_000);
     await citizenOtpLogin(page);
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr-how-it-works`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/pgr-how-it-works`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

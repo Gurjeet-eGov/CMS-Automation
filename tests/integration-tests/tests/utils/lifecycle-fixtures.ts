@@ -58,6 +58,18 @@ export interface LifecycleFixtures {
     uuid: string;
     code: string;
   };
+  /**
+   * Session-checks runs only (RUN_SESSION_CHECKS=1): the non-terminal complaint
+   * was filed with a photo already in FileStore. `citizenMobile` is the citizen
+   * who filed it, so a spec can sign in as them.
+   */
+  photo?: {
+    srid: string;
+    fileStoreId: string;
+    citizenMobile: string;
+  };
+  /** Why `photo` is absent on a session-checks run (upload or attach failed). */
+  photo_skipped_reason?: string;
 }
 
 /** Candidate paths the fixture file may live at. First hit wins. */

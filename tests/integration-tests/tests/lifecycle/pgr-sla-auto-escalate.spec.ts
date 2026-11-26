@@ -33,7 +33,7 @@
  * Run:
  *   npx playwright test tests/lifecycle/pgr-sla-auto-escalate.spec.ts
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { getDigitToken } from '../utils/auth';
 import { BASE_URL, TENANT, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
 import { seedComplaintAsCitizen } from '../utils/seed';

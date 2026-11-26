@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Employee PGR lifecycle DRIVEN THROUGH THE REAL TAKE-ACTION UI
  * (TEST-COVERAGE-GAPS #6 — "the lifecycle is asserted at render level but
@@ -30,7 +29,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * is one the deployment can actually assign, which is exactly what
  * resolveSeedPlan() guarantees.
  */
-import { test, expect, type Page, type Browser } from '@playwright/test';
+import { test, expect, type Page, type Browser } from '../utils/session-test';
 import { BASE_URL } from '../utils/env';
 import { resolveSeedPlan, getPersona, type ResolvedPersona } from '../utils/personas';
 import { seedComplaintAsCitizen } from '../utils/seed';
@@ -78,14 +77,14 @@ test.beforeAll(async () => {
 
 /** Fresh browser context + page logged in as `user`, opened on the complaint
  *  detail page. A dedicated context per principal guarantees the session
- *  actually switches (re-injecting localStorage on a live SPA page does not
+ *  actually switches (re-injecting storage on a live SPA page does not
  *  reliably swap the logged-in employee). */
 async function openDetailsAs(browser: Browser, user: string, pass: string): Promise<Page> {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   const ok = await loginEmployeeBrowser(page, user, pass);
   test.skip(!ok, `login failed for ${user}`);
-  await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/complaint-details/${srid}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.goto(`${BASE_URL}/digit-ui/employee/pgr/complaint-details/${srid}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.locator('.digit-viewcard-field-pair, .v2-pgr-details').first().waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForTimeout(3_000);
   return page;

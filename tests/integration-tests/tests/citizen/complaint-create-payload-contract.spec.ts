@@ -9,7 +9,7 @@
 //   (b) the backend round-trips buildingName + street on a fresh
 //       PGR _create call (that's the contract the form mapping
 //       eventually exercises).
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { loginEmployee } from '../utils/launch-fixes/api.js';
 import { BASE_URL, POSTAL_CODE_PATTERN, POSTAL_CODE_VALID } from '../utils/env';
 import { getProfile } from '../utils/profile';

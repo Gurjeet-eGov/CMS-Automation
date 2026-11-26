@@ -12,7 +12,6 @@
 import { expect, type Page } from '@playwright/test';
 import { getDigitToken, loginViaApi, type TokenResponse } from './auth';
 import { BASE_URL, TENANT, ROOT_TENANT } from './env';
-import { SRID_RE } from './pgr-idgen';
 
 export interface Principal {
   token: string;
@@ -41,7 +40,7 @@ export async function getPrincipal(username: string, password: string): Promise<
   return null;
 }
 
-/** Log an employee into the browser (localStorage injection) at the tenant
+/** Log an employee into the browser (sessionStorage injection, this tab only) at the tenant
  *  that accepts them. Returns the token response, or null if login failed. */
 export async function loginEmployeeBrowser(
   page: Page,
@@ -112,39 +111,21 @@ export async function apiReject(gro: Principal, srid: string, comment = '[DUPLIC
   return j?.ServiceWrappers?.[0]?.service?.applicationStatus;
 }
 
-/**
- * Waits until the inbox list has finished loading: data rows OR the "No results
- * found" block are visible, and the table loader is gone. Returns as soon as
- * that is true, so it costs nothing when the list is already rendered; the
- * timeout only applies when neither ever appears, and then it gives up quietly
- * so the caller reads whatever is on the page.
- *
- * The inbox table renders `.digit-table-loader` while its search is in flight,
- * rows with cells once data arrives, and `.digit-no-data-found` when empty.
- */
-export async function waitForInboxSettled(page: Page, timeout = 15_000): Promise<void> {
-  const dataRow = page.locator('[role="row"]').filter({ has: page.locator('[role="cell"], [role="gridcell"]') }).first();
-  const empty = page.locator('.digit-no-data-found, .no-data-found').first();
-  await expect(dataRow.or(empty).first()).toBeVisible({ timeout }).catch(() => {});
-  await expect(page.locator('.digit-table-loader')).toHaveCount(0, { timeout }).catch(() => {});
-}
-
-/** Read the visible inbox rows as {srid, locality, status} objects (skips the header row).
- *  Waits for the list to settle first, so a read never lands mid-load. */
+/** Read the visible inbox rows as {srid, locality, status} objects (skips the header row). */
 export async function readInboxRows(page: Page): Promise<{ srid: string; locality: string; status: string }[]> {
-  await waitForInboxSettled(page);
-  return page.evaluate((sridSource) => {
+  return page.evaluate(() => {
     const rows = Array.from(document.querySelectorAll('[role="row"]'));
     const out: { srid: string; locality: string; status: string }[] = [];
     for (const r of rows) {
       const cells = Array.from(r.querySelectorAll('[role="cell"], [role="gridcell"]')) as HTMLElement[];
       if (cells.length < 3) continue; // header row has no data cells
-      const m = (cells[0].innerText || '').match(new RegExp(sridSource));
+      // Prefix-agnostic SRID: Maputo emits PG-PGR-…, Kenya emits NCCG-PGR-…, etc.
+      const m = (cells[0].innerText || '').match(/[A-Z]+-PGR-\d{4}-\d{2}-\d{2}-\d+/);
       if (!m) continue;
       out.push({ srid: m[0], locality: (cells[1].innerText || '').trim(), status: (cells[2].innerText || '').trim() });
     }
     return out;
-  }, SRID_RE.source);
+  });
 }
 
 /** Matches the inbox's own server-side search so callers can await the re-query
@@ -190,18 +171,12 @@ export async function showAllInboxRows(page: Page): Promise<void> {
       await expect(allTab).toHaveAttribute('aria-selected', 'true', { timeout: 10_000 });
     }
   }
-  // The rows-per-page <select> renders only once the list has loaded; looking
-  // for it mid-load finds nothing and would skip the page-size bump.
-  await waitForInboxSettled(page);
   const sel = page.locator('select').last();
   if ((await sel.count()) === 0) return;
   const values = await sel.locator('option').evaluateAll(
     (os) => os.map((o) => (o as HTMLOptionElement).value).filter(Boolean),
   );
   if (values.length === 0) return;
-  // Already on the largest page size: re-selecting it fires no new search, so
-  // waiting for one would only burn the full response timeout.
-  if ((await sel.inputValue().catch(() => '')) === values[values.length - 1]) return;
   await Promise.all([
     page
       .waitForResponse(
@@ -211,7 +186,7 @@ export async function showAllInboxRows(page: Page): Promise<void> {
       .catch(() => null),
     sel.selectOption(values[values.length - 1]),
   ]);
-  await waitForInboxSettled(page);
+  await page.waitForTimeout(1_500);
 }
 
 /** Open the Take-Action menu and pick an action by its (localized OR raw-key)

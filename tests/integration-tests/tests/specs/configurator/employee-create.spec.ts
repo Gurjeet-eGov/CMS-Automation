@@ -6,7 +6,7 @@
  *   #458 — Assignment dept/designation are required (validation error if empty)
  *   #471 — Redirect to list after successful create + success toast
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../utils/session-test';
 import { loginConfigurator, CONFIGURATOR_BASE } from '../../utils/configurator-auth';
 
 test.describe('Employee Create (#458, #460, #471)', () => {

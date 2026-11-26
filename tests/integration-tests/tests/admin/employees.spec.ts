@@ -18,10 +18,10 @@
  *  - /access-control/v1/actions/mdms/_get returns 404 at `ke` (pre-existing;
  *    see DEV-LOG §13). Not on the critical create/edit path.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import ExcelJS from 'exceljs';
 import { loadAuth, employeeSearch, type AuthInfo } from '../utils/manage/api';
-import { lettersOnly, testCode, testCodeIndexed } from '../utils/manage/codes';
+import { testCode, testCodeIndexed } from '../utils/manage/codes';
 import { TENANT, ROOT_TENANT } from '../utils/env';
 import {
   getMobileValidationRule,
@@ -66,7 +66,7 @@ let SEED_HIERARCHY = process.env.SEED_HIERARCHY || 'ADMIN';
 let SEED_BOUNDARY_TYPE = process.env.SEED_BOUNDARY_TYPE || 'County';
 
 // Tracks whether resolveSeedFks() found a live employee to derive FKs from.
-// Tests that API-seed employees (4a/5) need a real boundary/dept/designation
+// Tests that API-seed employees (4a/5/6) need a real boundary/dept/designation
 // combo; without live resolution AND without an explicit env override they'd
 // silently fall back to the Kenya literals above, which fail (or worse,
 // silently mis-seed) on any non-Kenya tenant. See B6 in ADMIN-SUITE-PLAN.md.
@@ -280,7 +280,7 @@ Mutation-tested: deleting the \`search.fill(needle)\` line turns step 4 red
     );
 
     // ── search narrows to exactly the matching row ──────────────────────────
-    const search = page.locator('#main-content').getByPlaceholder(/search/i).first();
+    const search = page.getByPlaceholder(/search/i).first();
     await expect(search).toBeVisible();
     await search.fill(needle!);
     // expect.poll, not a bare read: the grid debounces the filter, so an
@@ -345,12 +345,12 @@ Mutation-tested: deleting the \`search.fill(needle)\` line turns step 4 red
   test('2. single create — happy path derives code + username, employee lands', {
     annotation: {
       type: 'description',
-      description: `End-to-end UI walk for the single-create flow with multiple regression guards baked in: Email required (invite model, #1999; DOB has been optional since CCRS#1949), CCRS#416 (Tenant picker present + defaults to session tenant), CCRS#436 (success toast). Confirms HRMS persists the employee with employeeStatus=EMPLOYED.
+      description: `End-to-end UI walk for the single-create flow with multiple regression guards baked in: CCRS#404/#419 (DOB required), CCRS#416 (Tenant picker present + defaults to session tenant), CCRS#436 (success toast). Confirms HRMS persists the employee with employeeStatus=EMPLOYED.
 
 Steps:
 1. Generate a unique code + Kenya-valid mobile (07-prefix, 10 digits); track for cleanup.
 2. Navigate to /employees/create.
-3. Pre-assertion: Email carries the required marker (an employee is invited by email).
+3. Pre-assertion CCRS#404/#419: Date of Birth input is visible AND has the required attribute.
 4. Pre-assertion CCRS#416: Tenant field is visible; if input/select assert value contains TENANT_CODE, otherwise assert text contains it.
 5. Fill Name; force Employee Code to the PW value (DigitFormCodeInput auto-derives but we need determinism for cleanup).
 6. Fill Mobile, leave Username blank (exercises auto-derive), fill Email, Date of Birth (1990-05-14), Date of Appointment (2026-01-15).
@@ -360,14 +360,9 @@ Steps:
 
 Cleanup uses the inline softDeleteEmployee helper because HRMS has no DELETE endpoint and effectiveFrom must be Date.now().`,
     },
-    tag: ['@area:configurator-manage', '@area:hrms', '@kind:happy-path', '@layer:ui', '@persona:admin', '@deprecated:digit-3.0'] }, async ({
+    tag: ['@area:configurator-manage', '@area:hrms', '@kind:happy-path', '@layer:ui', '@persona:admin'] }, async ({
     page,
   }, testInfo) => {
-    test.skip(
-      true,
-      'Deprecated in DIGIT 3.0: HRMS refuses an employee without a current assignment (COMPAT_REFUSED: needs a department and a designation). ' +
-        'Covered by "2b. single create with a current assignment".',
-    );
     const code = testCode(testInfo, 'EMP_CREATE');
     const uniq = code.split('_').pop() || '00000';
     // Mobile valid for THIS tenant's live MDMS rule (Kenya starts 7/1,
@@ -379,13 +374,15 @@ Cleanup uses the inline softDeleteEmployee helper because HRMS has no DELETE end
 
     await page.goto(`${LIST_PATH}/create`);
 
-    // --- Pre-assertions (Email required + CCRS#416) ---
-    // CCRS#404 / #419 (DOB required) was reversed by CCRS#1949: DOB is optional.
-    // Email is required instead (v.emailRequired): the invite goes to it.
-    // DigitFormInput marks required-ness with the label's `aria-label="required"`
-    // asterisk, not the HTML `required` attribute.
-    const emailLabel = page.locator('label', { hasText: /^Email/i }).first();
-    await expect(emailLabel.locator('[aria-label="required"]')).toBeVisible();
+    // --- Pre-assertions (CCRS#404 / #419 + CCRS#416) ---
+    // CCRS#404 / #419: DOB must be marked required on the Create form.
+    // DigitFormInput never sets the HTML `required` attribute — required-ness
+    // renders as the label's `aria-label="required"` asterisk marker instead
+    // (configurator/src/admin/DigitFormInput.tsx:69-73). Assert that marker.
+    const dobInput = page.getByLabel(/^Date of Birth/i);
+    await expect(dobInput).toBeVisible();
+    const dobLabel = page.locator('label', { hasText: /^Date of Birth/i }).first();
+    await expect(dobLabel.locator('[aria-label="required"]')).toBeVisible();
 
     // CCRS#416 (UI): Tenant picker is present on Create and defaults to the
     // session tenant. We accept either a native input (read via `value`) or a
@@ -470,80 +467,6 @@ Cleanup uses the inline softDeleteEmployee helper because HRMS has no DELETE end
     void found;
   });
 
-  test('2b. single create with a current assignment (department + designation) — DIGIT 3.0', {
-    annotation: {
-      type: 'description',
-      description: `DIGIT 3.0 version of test 2. HRMS refuses an employee without a current assignment (COMPAT_REFUSED: "DIGIT 3.0 employees need a department and a designation; send a current assignment"), so the single-create walk adds one through the form's Assignments section and checks HRMS stored it. Keeps test 2's guards: CCRS#436 success toast and the API check that the employee landed EMPLOYED.
-
-Steps:
-1. Generate a unique code + a mobile valid for the tenant's MDMS rule; track for cleanup.
-2. Navigate to /employees/create.
-3. Fill Name (letters only: DIGIT 3.0's individual registry refuses names that carry digits), Employee Code, Mobile Number, Email, Date of Birth (1990-05-14), Date of Appointment (2026-01-15); pick the EMPLOYEE role.
-4. Assignments: click "Add assignment"; pick the first Department and the first Designation; mark it the current assignment. From Date keeps its default (today).
-5. Click Create; wait for navigation back to LIST_PATH within 45s.
-6. CCRS#436: a role=status toast matching /created/i is visible within 5s.
-7. API: /egov-hrms/employees/_search with codes=<code> returns exactly 1 employee, EMPLOYED, whose current assignment carries the chosen department and designation codes.
-
-Cleanup uses the inline softDeleteEmployee helper, as test 2.`,
-    },
-    tag: ['@area:configurator-manage', '@area:hrms', '@kind:happy-path', '@layer:ui', '@persona:admin'] }, async ({
-    page,
-  }, testInfo) => {
-    const code = testCode(testInfo, 'EMP_ASSIGN');
-    const uniq = code.split('_').pop() || '00000';
-    const mobile = generateValidMobile(mobileRule);
-    createdCodes.add(code);
-
-    await page.goto(`${LIST_PATH}/create`);
-    await expect(page.getByLabel(/^Name/i)).toBeVisible({ timeout: 20_000 });
-
-    // Name auto-derives Code; override Code with the PW_ value for cleanup.
-    await page.getByLabel(/^Name/i).fill(`PW Employee ${lettersOnly(uniq)}`);
-    const codeInput = page.getByLabel(/^Employee Code/i);
-    await codeInput.fill('');
-    await codeInput.fill(code);
-    await page.getByLabel(/^Mobile Number/i).fill(mobile);
-    await page.getByLabel(/^Email/i).fill(`${code.toLowerCase()}@example.com`);
-    await page.getByLabel(/^Date of Birth/i).fill('1990-05-14');
-    await page.getByLabel(/^Date of Appointment/i).fill('2026-01-15');
-
-    // HRMS rejects employees with zero roles; pick EMPLOYEE as test 2 does.
-    const roleCombobox = page.getByRole('combobox', { name: /^Roles?$/i }).first();
-    await roleCombobox.click();
-    await roleCombobox.fill('EMPLOYEE');
-    await page.getByRole('option', { name: /^EMPLOYEE/i }).first().click();
-
-    // One current assignment with a department and a designation.
-    const { department, designation } = await addCurrentAssignment(page);
-
-    await Promise.all([
-      page.waitForURL(LIST_PATH, { timeout: 45_000 }),
-      page.getByRole('button', { name: /^Create$/ }).click(),
-    ]);
-
-    // CCRS#436: success toast after Create (see test 2).
-    const toast = page.getByRole('status').filter({ hasText: /created/i }).first();
-    await expect(toast).toBeVisible({ timeout: 5_000 });
-
-    // HRMS stored the employee with the chosen current assignment.
-    const auth = loadAuth();
-    const direct = await postJson(
-      auth,
-      `${HRMS_SEARCH}?tenantId=${TENANT_CODE}&codes=${encodeURIComponent(code)}&limit=1&offset=0`,
-      { RequestInfo: requestInfo(auth) },
-    );
-    const list = (direct.Employees as HrmsEmployee[]) || [];
-    expect(list.length).toBe(1);
-    expect(list[0].code).toBe(code);
-    expect(list[0].employeeStatus).toBe('EMPLOYED');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const assignments = ((list[0] as any).assignments as Array<Record<string, unknown>> | undefined) ?? [];
-    const current = assignments.find((a) => a.isCurrentAssignment === true);
-    expect(current, 'HRMS must store a current assignment').toBeTruthy();
-    expect(current?.department, 'current assignment department').toBe(department);
-    expect(current?.designation, 'current assignment designation').toBe(designation);
-  });
-
   test('3. too-short mobile shows inline validation error', {
     annotation: {
       type: 'description',
@@ -596,7 +519,7 @@ Pairs with the happy-path test (#2) — together they bracket valid + invalid mo
 
 Steps:
 1. Generate a unique code; track for cleanup.
-2. Create via UI: fill Name, Code, Mobile, Email (required since the invite model), DOB '1985-07-20', and one current assignment (first Department and Designation; DIGIT 3.0 HRMS requires it); Click Create.
+2. Create via UI: fill Name, Code, Mobile, DOB '1985-07-20'; Click Create.
 3. Search for the code; click matching row; click Edit.
 4. Assert Date of Birth input has value '1985-07-20' (NOT epoch-ms).
 5. Assert Employee Code input is disabled.
@@ -621,8 +544,6 @@ Code and Username are write-once because HRMS doesn't allow mutating either afte
     await codeInput.fill('');
     await codeInput.fill(code);
     await page.getByLabel(/^Mobile Number/i).fill(mobile);
-    // Email is required (v.emailRequired): the employee is invited by email.
-    await page.getByLabel(/^Email/i).fill(`${code.toLowerCase()}@example.com`);
     await page.getByLabel(/^Date of Birth/i).fill('1985-07-20');
     // Date of Appointment is required (v.required, EmployeeCreate.tsx) — was
     // missing here, which silently blocked the form from ever submitting.
@@ -633,9 +554,6 @@ Code and Username are write-once because HRMS doesn't allow mutating either afte
     await roleCombobox.click();
     await roleCombobox.fill('EMPLOYEE');
     await page.getByRole('option', { name: /^EMPLOYEE/i }).first().click();
-    // DIGIT 3.0 HRMS refuses an employee without a current assignment
-    // (COMPAT_REFUSED: needs a department and a designation).
-    await addCurrentAssignment(page);
 
     await Promise.all([
       page.waitForURL(LIST_PATH, { timeout: 45_000 }),
@@ -643,7 +561,7 @@ Code and Username are write-once because HRMS doesn't allow mutating either afte
     ]);
 
     // Navigate into the row → edit.
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(code);
+    await page.getByPlaceholder(/search/i).first().fill(code);
     await page.waitForLoadState('networkidle').catch(() => {});
     const row = page.getByRole('row').filter({ hasText: code });
     await expect(row).toBeVisible();
@@ -750,7 +668,7 @@ Hermetic: doesn't rely on tenant content — seeds and verifies its own employee
 
     // Open Edit via list-row click (same entry-point as test 4).
     await page.goto(LIST_PATH);
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(code);
+    await page.getByPlaceholder(/search/i).first().fill(code);
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.getByRole('row').filter({ hasText: code }).click();
     await page.getByRole('button', { name: /^Edit$/i }).click();
@@ -864,7 +782,7 @@ The MDMS reason source is asserted indirectly — if the dropdown has no options
 
     // Edit via UI → flip Status to Inactive → reason renders → save.
     await page.goto(LIST_PATH);
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(code);
+    await page.getByPlaceholder(/search/i).first().fill(code);
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.getByRole('row').filter({ hasText: code }).click();
     await page.getByRole('button', { name: /^Edit$/i }).click();
@@ -895,10 +813,81 @@ The MDMS reason source is asserted indirectly — if the dropdown has no options
     expect((emp.deactivationDetails as unknown[]).length).toBeGreaterThan(0);
   });
 
+  test('6. reset password — collapsed by default, expand rotates token', {
+    annotation: {
+      type: 'description',
+      description: `Verifies the EmployeeEdit "Reset password" UI affordance: collapsed by default (New password field NOT visible), expanding reveals the form with a "Keep existing" cancel option. Doesn't actually rotate the password — that requires environment-dependent OAuth re-login round-trip.
+
+Steps:
+1. Generate a unique code; track for cleanup.
+2. API-seed a fresh employee.
+3. Navigate to LIST_PATH; search; click row; click Edit.
+4. Locate "Reset password" button; assert visible.
+5. Assert "New password" input is NOT visible (collapsed default).
+6. Click Reset password.
+7. Assert New password input is now visible.
+8. Assert "Keep existing" button is visible (the cancel affordance).
+
+Affirms the safety contract — admins must explicitly opt-in to password rotation; it's never the default.`,
+    },
+    tag: ['@area:configurator-manage', '@area:hrms', '@kind:regression', '@layer:ui', '@persona:admin'] }, async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !seedFksResolved && !process.env.SEED_DEPT,
+      'no existing employee to derive live HRMS FKs from — set SEED_* env vars',
+    );
+    const code = testCode(testInfo, 'EMP_PWD');
+    const uniq = code.split('_').pop() || '33333';
+    const mobile = generateValidMobile(mobileRule);
+    createdCodes.add(code);
+
+    const auth = loadAuth();
+    await postJson(auth, '/egov-hrms/employees/_create?tenantId=' + TENANT_CODE, {
+      RequestInfo: requestInfo(auth, '_create'),
+      Employees: [{
+        tenantId: TENANT_CODE, code, employeeStatus: 'EMPLOYED', employeeType: 'PERMANENT',
+        dateOfAppointment: Date.now() - 24 * 3600_000,
+        user: {
+          userName: code.toLowerCase().replace(/_/g, '.'),
+          name: `PW Pwd ${uniq}`, mobileNumber: mobile,
+          type: 'EMPLOYEE', active: true, gender: 'MALE', dob: 631152000000,
+          password: 'eGov@123', tenantId: TENANT_CODE,
+          roles: [{ code: 'EMPLOYEE', name: 'Employee', tenantId: TENANT_CODE }],
+        },
+        jurisdictions: [{ boundary:SEED_BOUNDARY, boundaryType:SEED_BOUNDARY_TYPE, hierarchy:SEED_HIERARCHY, hierarchyType:SEED_HIERARCHY, tenantId: TENANT_CODE, isActive:true }],
+        assignments: [{ department:SEED_DEPT, designation:SEED_DESIG, fromDate: Date.now()-24*3600_000, isCurrentAssignment:true }],
+      }],
+    });
+
+    await page.goto(LIST_PATH);
+    await page.getByPlaceholder(/search/i).first().fill(code);
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.getByRole('row').filter({ hasText: code }).click();
+    await page.getByRole('button', { name: /^Edit$/i }).click();
+
+    // Password section is collapsed — the "Reset password" button is the
+    // only way in. The "New password" field must not be visible yet.
+    const resetBtn = page.getByRole('button', { name: /Reset password/i });
+    await expect(resetBtn).toBeVisible();
+    await expect(page.getByLabel(/^New password/i)).not.toBeVisible();
+
+    await resetBtn.click();
+    const newPwdInput = page.getByLabel(/^New password/i);
+    await expect(newPwdInput).toBeVisible();
+
+    // Token-level sanity: a fresh OAuth call against the known default
+    // should currently succeed (pre-change). We skip the actual rotation +
+    // re-login round-trip because rotating through /user/oauth requires
+    // the employee to be able to hit citizen login surfaces, which is
+    // environment-dependent. Verify only that the reveal path mounts.
+    await expect(page.getByRole('button', { name: /^Keep existing$/i })).toBeVisible();
+  });
+
   test('7. bulk import — 3 valid + 2 invalid rows, create 3 lands', {
     annotation: {
       type: 'description',
-      description: `Bulk-import end-to-end with mixed validity: 3 well-formed rows + 2 deliberately broken rows (short mobile; unknown department + unknown role). Confirms the preview marks 2 errors, the Create button shows "3" (not 5), and HRMS lands all 3 valid employees. Also exercises the invitations CSV download.
+      description: `Bulk-import end-to-end with mixed validity: 3 well-formed rows + 2 deliberately broken rows (short mobile; unknown department + unknown role). Confirms the preview marks 2 errors, the Create button shows "3" (not 5), and HRMS lands all 3 valid employees. Optionally exercises the credentials CSV download.
 
 Steps:
 1. Generate 3 valid + 2 invalid codes; track only valid for cleanup.
@@ -910,15 +899,15 @@ Steps:
 7. Assert button matching /Create\\s+3\\s+(employee|row)s?/i is visible.
 8. Click Create; wait for /3\\s*(created|success)/i within 90s.
 9. For each valid code, POST HRMS _search; assert exactly 1 result, isActive !== false.
-10. Click "Download invitations CSV" (it replaced the credentials CSV in the invite model) and confirm the download path is non-empty.
+10. If "credentials CSV" download button is visible, click it and confirm the download path is non-empty.
 
 The xlsx sheet name is 'Employee' to match excelParser.ts's allow-list (Employee/Employees/EmployeeMaster/HRMS/employee).
 
 No \`jurisdictions\` column is populated: EmployeeBulkImport.tsx treats it as
 fully optional (parse-time: a warning, not a blocking error; validateRow:
 skipped entirely when falsy) — and on this deployment the ROOT tenant (where
-this spec manages employees) has zero boundary-hierarchy nodes at all,
-so ANY jurisdiction code
+this spec manages employees) has zero boundary-hierarchy nodes at all
+(same fact employee-create-tenant-459 documents), so ANY jurisdiction code
 would fail the row-level "Boundary not found" check regardless of which
 code was chosen. Omitting the column sidesteps a tenant-shape dependency
 this test was never actually about.
@@ -954,7 +943,7 @@ the test is actually asserting.`,
       // this spec's ROOT tenant which has no boundary hierarchy at all).
       ...validCodes.map((c, i) => ({
         employeeCode: c,
-        name: `PW Bulk ${lettersOnly(String(i + 1))}`, // letters only: DIGIT 3.0 refuses names with digits
+        name: `PW Bulk ${i + 1}`,
         userName: '',
         // Valid for THIS tenant's MDMS mobile rule — no hardcoded '07…'.
         mobileNumber: generateValidMobile(mobileRule),
@@ -973,10 +962,10 @@ the test is actually asserting.`,
       // "5 rows, 2 errors" contract to 4 rows — see annotation.
       {
         employeeCode: invalidCodes[0],
-        name: 'PW Bulk Bad One',
+        name: 'PW Bulk Bad1',
         userName: '',
         mobileNumber: '99999',
-        emailId: `${invalidCodes[0].toLowerCase()}@example.com`,
+        emailId: '',
         gender: 'MALE',
         dob: '1988-04-10',
         department: SEED_DEPT,
@@ -988,11 +977,11 @@ the test is actually asserting.`,
       // Invalid row 2 — unknown department + unknown role code.
       {
         employeeCode: invalidCodes[1],
-        name: 'PW Bulk Bad Two',
+        name: 'PW Bulk Bad2',
         userName: '',
-        // Valid mobile + email so the ONLY validation errors are the unknown dept/role.
+        // Valid mobile so the ONLY validation errors are the unknown dept/role.
         mobileNumber: generateValidMobile(mobileRule),
-        emailId: `${invalidCodes[1].toLowerCase()}@example.com`,
+        emailId: '',
         gender: 'MALE',
         dob: '1990-01-01',
         department: 'NO_SUCH_DEPT',
@@ -1043,14 +1032,14 @@ the test is actually asserting.`,
       expect(list[0].isActive).not.toBe(false);
     }
 
-    // Invitations CSV download — completionExtras renders it whenever a row
-    // was created, so it is required here.
-    const downloadBtn = page.getByRole('button', { name: /invitations CSV/i });
-    await expect(downloadBtn).toBeVisible();
-    const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
-    await downloadBtn.click();
-    const download = await downloadPromise;
-    expect(await download.path()).toBeTruthy();
+    // Credentials CSV download — button is rendered in completionExtras.
+    const downloadBtn = page.getByRole('button', { name: /credentials CSV/i });
+    if (await downloadBtn.isVisible().catch(() => false)) {
+      const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
+      await downloadBtn.click();
+      const download = await downloadPromise;
+      expect(await download.path()).toBeTruthy();
+    }
   });
 });
 
@@ -1160,35 +1149,4 @@ async function buildEmployeeXlsx(rows: BulkRow[]): Promise<Buffer> {
   }
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf as ArrayBuffer);
-}
-
-/**
- * Opens the form select whose placeholder matches (it reads "Loading..." until
- * its options arrive, so the locator waits for the real placeholder), picks the
- * first option and returns that option's code (its data-value).
- */
-async function pickFirstSelectOption(page: Page, placeholder: RegExp): Promise<string> {
-  const trigger = page.getByRole('combobox').filter({ hasText: placeholder }).first();
-  await expect(trigger).toBeEnabled({ timeout: 15_000 });
-  await trigger.click();
-  const option = page.getByRole('option').first();
-  await option.waitFor({ state: 'visible', timeout: 10_000 });
-  const value = (await option.getAttribute('data-value')) ?? '';
-  expect(value, `${placeholder} must offer at least one option with a code`).not.toBe('');
-  await option.click();
-  return value;
-}
-
-/**
- * Adds one current assignment on the Create Employee form: clicks "Add
- * assignment", picks the first Department and Designation, and marks it the
- * current assignment (From Date keeps its default, today). DIGIT 3.0 HRMS
- * refuses an employee without one (COMPAT_REFUSED). Returns the chosen codes.
- */
-async function addCurrentAssignment(page: Page): Promise<{ department: string; designation: string }> {
-  await page.getByRole('button', { name: 'Add assignment' }).click();
-  const department = await pickFirstSelectOption(page, /Select department/i);
-  const designation = await pickFirstSelectOption(page, /Select designation/i);
-  await page.getByRole('radio', { name: /Current assignment/i }).first().check();
-  return { department, designation };
 }

@@ -19,7 +19,7 @@
  *   - #417 — Configurator must no longer render the UndoToast
  *            (real rollback compensators are blocked on backend)
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { getDigitToken, loginViaApi } from '../utils/auth';
 import { BASE_URL, TENANT, ROOT_TENANT, ADMIN_USER, ADMIN_PASS, LOCALES } from '../utils/env';
 

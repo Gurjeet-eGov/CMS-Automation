@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Citizen reopen-complaint UI — Story 7.1.
  *
@@ -21,7 +20,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * marks them inferred. If they get wired up cleanly, extend this spec
  * + Story 7.1 in the same PR.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 
 // Disable trace/video so the spec runs cleanly with --no-deps (the
 // .playwright-artifacts-0 dir is only created by the full setup DAG).
@@ -63,7 +62,7 @@ beforeAll is API-only because the reopen UI requires the complaint to be in RESO
     tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:citizen'] }, async ({ page }) => {
     test.setTimeout(120_000);
     await citizenOtpLogin(page);
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/pgr/reopen/${serviceRequestId}`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/pgr/reopen/${serviceRequestId}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

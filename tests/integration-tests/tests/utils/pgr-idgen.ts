@@ -11,16 +11,10 @@
  * One idgen call per `npx playwright test` invocation; the resulting
  * prefix is cached on disk via citizen-fixture.json (see citizen-provision).
  */
-import { BASE_URL, ROOT_TENANT, TENANT } from './env';
+import { BASE_URL, ROOT_TENANT, TENANT, ADMIN_USER, ADMIN_PASS } from './env';
 import { getDigitToken } from './auth';
 
 const DEFAULT_FALLBACK = 'NCCG';
-
-/**
- * A service-request ID, `<PREFIX>-PGR-<YYYY>-<MM>-<DD>-<seq>`; group 1 is the
- * prefix, which can itself hold hyphens (a signup workspace's KE-QA).
- */
-export const SRID_RE = /([A-Z0-9]+(?:-[A-Z0-9]+)*)-PGR-\d{4}-\d{2}-\d{2}-\d+/;
 
 /**
  * Resolve the PGR ID prefix for this deployment by asking egov-idgen
@@ -38,8 +32,8 @@ export async function getPgrIdPrefix(opts?: { tenant?: string }): Promise<string
     auth = await getDigitToken({
       baseURL: BASE_URL,
       tenant: ROOT_TENANT,
-      username: process.env.ADMIN_USER || 'ADMIN',
-      password: process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD || 'eGov@123',
+      username: ADMIN_USER, // env.ts: one admin family (ADMIN_USER/ADMIN_PASS are deprecated aliases)
+      password: ADMIN_PASS,
     });
   } catch {
     return DEFAULT_FALLBACK;
@@ -61,7 +55,7 @@ export async function getPgrIdPrefix(opts?: { tenant?: string }): Promise<string
       };
       const id = json.idResponses?.[0]?.id;
       if (!id) continue;
-      const match = id.match(SRID_RE);
+      const match = id.match(/^([A-Z0-9]+)-PGR-/);
       if (match) return match[1];
     } catch {
       // try next tenant

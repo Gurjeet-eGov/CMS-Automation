@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Employee PGR inbox-v2 — column-header SORT actually changes the row order
  * (issue #922: clicking a sortable column header did nothing).
@@ -35,7 +34,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * reason when the deployment can't support the scenario (e.g. ADMIN login
  * fails, or the tenant has fewer than 2 ward-level boundaries).
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { pgrCreate, resolveServiceCode } from '../utils/launch-fixes/api';
 import {
   BASE_URL, TENANT, SERVICE_CODE, ADMIN_USER, ADMIN_PASS,
@@ -48,7 +47,7 @@ import {
 import { getProfile } from '../utils/profile';
 import { fetchBoundaryTree, type BoundaryNode } from '../utils/probes';
 
-const identityInboxUrl = () => `${BASE_URL}/${tenantSlug()}/digit-ui/employee/pgr/inbox-v2`;
+const INBOX_URL = `${BASE_URL}/digit-ui/employee/pgr/inbox-v2`;
 const SEARCH_RE = /pgr-services\/v2\/request\/_search/;
 
 let admin: Principal | null = null;
@@ -123,11 +122,8 @@ async function openInbox(page: Page): Promise<void> {
   test.skip(!ok, `employee ${EMPLOYEE_USER} login failed on this deployment`);
   await Promise.all([
     page.waitForResponse((r) => SEARCH_RE.test(r.url()) && r.request().method() === 'POST', { timeout: 30_000 }).catch(() => null),
-    page.goto(identityInboxUrl(), { waitUntil: 'domcontentloaded', timeout: 30_000 }),
+    page.goto(INBOX_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 }),
   ]);
-  // The inbox opens on "My Complaints", which is honestly empty (no table at all)
-  // for a viewer nobody assigned anything to: widen to "All Complaints" first.
-  await showAllInboxRows(page);
   await page.locator('[role="row"]').first().waitFor({ state: 'visible', timeout: 20_000 });
   await page.waitForTimeout(1_500);
 }

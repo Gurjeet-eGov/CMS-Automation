@@ -6,24 +6,6 @@ complaints). Runs against any DIGIT deployment; configured via env vars.
 
 ## Quick Start
 
-Each deployment is an **environment**: `environments/<name>/config.env`
-(committed, no secrets) plus `environments/<name>/secrets.env` (git-ignored;
-copy `secrets.example` next to it and fill it in). Run it the way CI does,
-from the repo root:
-
-```bash
-ci/run-local.sh <env> profile-only        # read-only: what does the deployment have?
-ci/run-local.sh <env> smoke               # scopes: profile-only, smoke, api, smoke+api,
-ci/run-local.sh <env> full                #   citizen, employee, admin, lifecycle, full
-ci/run-local.sh <env> citizen --grep @area:pgr -- --headed
-```
-
-Results land in `.work/out` (`report.json`, `results.xml`,
-`playwright-report/`). See `WRITING-TESTS.md` §7.
-
-Running Playwright directly from this folder still works when you export the
-variables yourself:
-
 ```bash
 npm install
 npx playwright install chromium
@@ -43,7 +25,7 @@ npm run test:ui
 # Sanity-check that all specs parse without running them
 npm run test:list
 
-# Run against a different deployment by hand (example values: bomet, single-tenant `ke`)
+# Run against a different deployment (bomet is single-tenant `ke`)
 BASE_URL=https://bometfeedbackhub.digit.org \
 DIGIT_TENANT=ke \
 LOCALITY_CODE=BOMET_BOMET_CENTRAL_CHESOEN \
@@ -54,20 +36,12 @@ npx playwright test
 set -a; source deploy/bomet.env; set +a && npx playwright test
 ```
 
-Every run starts with the setup projects (`tests/fixtures/*.setup.ts`, see
-`WRITING-TESTS.md` §2). Sign-in is **Keycloak + the Identity BFF**: the
-`setup` project signs the admin (`ADMIN_USER` / `ADMIN_PASSWORD`, a Keycloak
-login) into the configurator with `utils/configurator-auth.ts`
-`loginConfigurator` and saves the BFF session cookie and the selected DIGIT
-context to `auth.json`; `api-setup` does the same without a browser
-(`auth-api.json`). The app keeps its tokens in **sessionStorage**. Both
-files are gitignored.
+The first run executes the `setup` project (auth.setup.ts) which logs into
+the configurator UI as `ADMIN/eGov@123` (override via `ADMIN_USER`,
+`ADMIN_PASSWORD`, `TENANT_CODE`) and writes `auth.json`. All other
+projects pick up `storageState: 'auth.json'`. `auth.json` is gitignored.
 
 ## Environment Variables
-
-Per-deployment values belong in `environments/<name>/config.env`, passwords
-and logins in its `secrets.env`. The bomet and Nairobi values below are the
-code's fallbacks, shown as examples, not as what to use.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -89,16 +63,9 @@ code's fallbacks, shown as examples, not as what to use.
 | `CITY_TENANT` | `ke.nairobi` | A real city tenant in the configurator list (tenants-search test) |
 | `TENANT_LABEL` | `Bomet County` | Tenant label shown on the login City combobox |
 | `SCREENSHOT_DIR` | `/tmp/full-complaint-lifecycle-ui-screenshots` | Directory for UI test screenshots |
-| `IDENTITY_TEST_TENANT_SLUG` | — (required) | Workspace slug: app URLs are `/<slug>/digit-ui/…` |
-| `IDENTITY_TEST_OTP_CODE` / `IDENTITY_TEST_OTP_SINK_URL` | — | Citizen OTP: a fixed code, or an SMS sink the suite reads |
-| `PERSONA_CANDIDATES` | — | More logins the suite may sign in as, `login:password` pairs, comma-separated (in `secrets.env`) |
-| `CITIZEN_LANGUAGE_PILL_TEXT` | `English` | Text of the citizen home page's language pill on this deployment |
-| `CITIZEN_DEFAULT_NAME` | — (the phone number) | Name the deployment gives a citizen who registers without one |
-| `TENANT_CASE_WORKAROUND` | off | Temporary workaround for an open product bug; see `WRITING-TESTS.md` §10 |
 
-See `environments/<name>/config.env` and `secrets.example` for the
-per-environment files `ci/run-local.sh` and CI load. `.env.example` and
-`deploy/*.env` are the older hand-sourced templates.
+See `.env.example` for a complete template, and `deploy/bomet.env` for a
+worked per-deployment override file.
 
 ## Portability
 
@@ -181,15 +148,7 @@ existing persona spec, not a new dated tree.
 
 ### `tests/employee/`
 
-- `login.spec.ts` — employee sign-in, wrong-password handling, session tokens
-- `inbox-filters.spec.ts`, `inbox-search.spec.ts`, `pgr-inbox-sort-922.spec.ts` — inbox
-- `pgr-details.spec.ts`, `workflow-lifecycle-ui.spec.ts`, `workflow-reject-ui.spec.ts`,
-  `escalate-action-521.spec.ts`, `reopen-limit-925.spec.ts` — complaint details and workflow actions
-- `profile.spec.ts`, `profile-validation-config-445.spec.ts`,
-  `change-password-visibility-812.spec.ts`,
-  `confirm-reauth-before-account-action-2645.spec.ts` — account and profile
-- `sidebar.spec.ts`, `digit-ui-shell-2026-05-31.spec.ts`,
-  `working-context-jurisdiction.spec.ts` — shell, navigation, working context
+- `citizen-otp-login.spec.ts` — token + UI session injection
 - `pgr-fixes-2026-04-29.spec.ts` — assign workflow, role filter, REJECT reasons
 
 ### `tests/admin/`
@@ -198,7 +157,7 @@ Configurator manage surface (`/configurator/manage/*`) plus admin-scoped
 regression checks:
 `departments`, `designations`, `complaint-types`, `complaints`,
 `employees`, `users`, `tenants`, `boundary-hierarchies`, `localization`,
-`theme-editor`, `theme-applied`,
+`theme-editor`, `theme-applied`, `target-tenant-onboarding`,
 `pgr-dashboard`, `hardcoding`, `recently-shipped-fixes`,
 `configurator-mdms-fixes-2026-04-29`.
 
@@ -212,89 +171,26 @@ needed role, the relevant test calls `test.skip()` with a clear reason.
 ### `tests/lifecycle/`
 
 Cross-persona end-to-end flows:
-- `pgr-sla-auto-escalate.spec.ts` — SLA breach auto-escalation (needs a
-  deployment tuned for fast escalation; skips otherwise)
-
-The PGR API lifecycle and the ESCALATE chain live in `tests/api/`
-(`pgr-lifecycle.spec.ts`, `pgr-escalation.spec.ts`).
-
-### `tests/onboarding-real/`
-
-`workspace-lifecycle.spec.ts` (#2266) drives the whole self-service journey
-against a real stack, at API level through the public origin:
-
-1. Magic-link signup (link read from Mailpit), PGR signup draft, `_submit`,
-   then `operations/_search` until `SUCCEEDED`.
-2. Founder `_select`; the workspace starts `NOT_STARTED`.
-3. The configurator's step calls, in order: Branding (logo upload,
-   ThemeConfig), Geography (2-level hierarchy), Departments (2 departments,
-   1 designation), Employees (two GROs and an LME via HRMS `_create` then BFF
-   `_link`; before that, one browser step downloads the Employees step's template and checks its Codes sheet and sample row against the departments, designation and boundaries just created (#2648; needs `npx playwright install chromium`); the water GRO and the LME follow their activation mail and set a
-   password; the roads GRO exists only so every routed department has a GRO,
-   and is never activated), Complaint types (2 leaves
-   with department and SLA). Every step is marked DONE and the workspace ends
-   `DONE` with every probe true. The labels the steps wrote resolve for `en_IN`.
-4. GRO and LME sign in through Keycloak with their email (#2646); in a
-   browser the water GRO signs out and back in, and the login field reads
-   "Email" (needs `npx playwright install chromium`). A citizen signs in by OTP at `/{slug}/`
-   and files a complaint.
-5. The GRO sees it in the TEAM inbox and assigns it, the LME sees it in the MINE
-   inbox and resolves it, the citizen rates and closes it, and the workflow
-   history reads APPLY, ASSIGN, RESOLVE, RATE.
-6. The founder removes the LME: HRMS marks the employee inactive, the BFF drops
-   the binding, and the LME's session and DIGIT token stop working.
-
-Any 403, 404 or 5xx on any request fails the run at that call. Each run
-creates one new tenant and leaves it behind (there is no tenant delete API);
-its slug is `e2e-<letters>` and its tenant id `ee<letters>`.
-
-It is not part of any CI job. Run it by hand against a dev box:
-
-| Variable | Description |
-|----------|-------------|
-| `ONBOARDING_E2E_BASE_URL` | Public origin of the stack (nginx in front of Kong, the BFF and Keycloak) |
-| `ONBOARDING_E2E_MAILPIT_URL` | Mailpit API base, e.g. `http://127.0.0.1:18025/mailpit/api/v1` through an SSH tunnel |
-| `ONBOARDING_E2E_OTP_COMMAND` | Shell command that prints the citizen OTP. It gets `OTP_PHONE`, `OTP_TENANT_ID`, `OTP_CHALLENGE_ID` and `OTP_SINCE_MS` |
-| `ONBOARDING_E2E_EMAIL_DOMAIN` | Domain for the run's addresses (default `e2e.test`; Mailpit catches all) |
-| `ONBOARDING_E2E_MOBILE_PREFIX` / `ONBOARDING_E2E_MOBILE_LENGTH` | Shape of generated mobile numbers (default `7`, 9 digits); checked against the tenant's rule |
-| `ONBOARDING_E2E_IGNORE_HTTPS_ERRORS` | `1` for a box with a self-signed certificate |
-
-With `IDENTITY_CITIZEN_OTP_SENDER=log`, the OTP command can read the BFF log:
-
-```bash
-ssh -f -N -L 18025:127.0.0.1:18025 <box>
-export ONBOARDING_E2E_BASE_URL=https://<box-domain>
-export ONBOARDING_E2E_MAILPIT_URL=http://127.0.0.1:18025/mailpit/api/v1
-export ONBOARDING_E2E_OTP_COMMAND='ssh <box> "sudo docker logs --since $((OTP_SINCE_MS/1000-5)) digit-identity-bff 2>&1" \
-  | grep identity.citizen_otp.log_sender | sed "s/^[^{]*//" \
-  | jq -r --arg t "$OTP_TENANT_ID" --arg p "$OTP_PHONE" "select(.tenantId==\$t and (.phoneNumber|tostring|endswith(\$p))) | .code" | tail -1'
-npm run test:onboarding-real
-```
-
-A run takes about 2–5 minutes; most of it is tenant provisioning (measured: 4.0 min, then 2.0 min once #2310 removed the provisioning retries). Each run uses
-one magic-link request, and the BFF allows 3 per client IP per 30 minutes by
-default (`IDENTITY_MAGIC_LINK_REQUEST_LIMIT`), so back-to-back runs from one
-machine can stall at "No mail with a sign-in link".
+- `pgr-api.spec.ts` — pure API lifecycle (~2s)
+- `pgr-ui.spec.ts` — pure UI lifecycle (~4 min)
+- `pgr-escalation-api.spec.ts` — manual ESCALATE chain
+- `api-smoke-2026-04-29.spec.ts` — API helpers reach the deployment
+- `filestore-fixes-2026-04-29.spec.ts` — JPEG upload regression
 
 ## Project Structure
 
 ```
 tests/
-├── fixtures/                         # setup projects, run before the specs
-│   ├── profile.setup.ts              # discovers the deployment → deployment-profile.json
-│   ├── auth.setup.ts                 # configurator sign-in → auth.json
-│   ├── api.setup.ts                  # BFF sign-in, no browser → auth-api.json
-│   ├── citizen.setup.ts              # one fresh citizen → citizen-fixture.json
-│   └── lifecycle.setup.ts            # seeds complaints → lifecycle-fixtures.json
+├── fixtures/
+│   └── auth.setup.ts                 # UI login → auth.json (storageState)
 ├── citizen/                          # citizen persona flows
 ├── employee/                         # employee persona flows
 ├── admin/                            # configurator + manage surface
 ├── lifecycle/                        # cross-persona end-to-end
 └── utils/
-    ├── identity-bff.ts               # Keycloak + Identity BFF: sign-in, contexts, OTP, surfacePath
-    ├── auth.ts                       # staff sign-in through the BFF (signIn, loginViaApi)
-    ├── citizen-login.ts              # citizen OTP sign-in (API session or UI)
-    ├── configurator-auth.ts          # configurator session (loginConfigurator)
+    ├── auth.ts                       # token acquisition (legacy oauth path)
+    ├── citizen-login.ts              # citizen OTP login UI helper
+    ├── configurator-auth.ts          # configurator localStorage injection
     ├── env.ts                        # environment config
     ├── manage/                       # admin spec helpers
     │   ├── api.ts                    # reads auth.json, mdms/pgr/hrms calls
@@ -307,14 +203,10 @@ tests/
 
 ## CI
 
-`.github/workflows/integration-tests.yml` runs the suite on demand
-(Actions → Run workflow) with an **environment**, a **scope** (default
-`full`) and an optional **grep**. The environment is a GitHub Environment
-holding `CONFIG_ENV` and `SECRETS_ENV` (the contents of that environment's
-`config.env` and `secrets.env`). It uses the same `ci/` scripts as
-`ci/run-local.sh`; full runs are published to the GitHub Pages dashboard per
-`<branch>/<env>`. Screenshots, video and traces are off in CI unless
-`RECORD_SCREENSHOTS` / `RECORD_VIDEO` / `RECORD_TRACES` are set.
+`.github/workflows/e2e.yml` is `workflow_dispatch`-only for now — the
+manage-surface specs are still being stabilized and we don't want every
+PR to wake the suite against the live tenant. Trigger manually from the
+Actions tab once secrets `TEST_BASE_URL` and `ADMIN_PASSWORD` are set.
 
 ## Prerequisites
 
@@ -323,8 +215,7 @@ holding `CONFIG_ENV` and `SECRETS_ENV` (the contents of that environment's
   - PGR services (`pgr-services`)
   - User service (`egov-user`)
   - Workflow service (`egov-workflow-v2`)
-  - A citizen OTP the suite can read: a fixed code (`IDENTITY_TEST_OTP_CODE`)
-    or an SMS sink (`IDENTITY_TEST_OTP_SINK_URL`)
+  - Mock OTP (Kong `request-termination` plugin) for citizen login
   - City-level admin employee for UI tests (e.g. `EMP-KE_NAIROBI-000089`)
 
 ## Notes
@@ -332,4 +223,23 @@ holding `CONFIG_ENV` and `SECRETS_ENV` (the contents of that environment's
 - **API tests** are fast (~2s) and use `fetch()` directly — no browser needed
 - **UI tests** use Playwright headless Chromium, take screenshots at each step
 - The city-level admin (`CITY_ADMIN_USER`) is needed because DIGIT's `getCurrentTenantId()` returns the employee's login tenant — UI workflow actions require this to match the complaint's city tenant
-- Citizen registration goes through the Identity BFF OTP flow; the BFF rate-limits OTPs per phone and per IP, so avoid re-running citizen sign-in in tight loops
+- Citizen registration uses mock OTP (`FIXED_OTP=123456`) — the Kong gateway returns 200 for `/user-otp` and `/otp` endpoints
+
+## This branch (`digit-2.12.1-nairobi`): changes from the v2.12.1 tag
+
+The suite here is the product repo's `tests/integration-tests` at tag `v2.12.1`, copied as is, then changed only as listed below. Run it through the repo's `ci/` wrapper (`ci/run-local.sh <environment> <scope>`, or the **Integration tests** workflow with this branch). The first target is `environments/cms_pilot/`.
+
+| Change | Where | Why |
+|---|---|---|
+| Sessions live in **sessionStorage** | `tests/utils/session-storage.ts`, `auth.ts`, `citizen-login.ts`, `configurator-auth.ts`, `fixtures/auth.setup.ts`, `fixtures/api.setup.ts`, `manage/api.ts` (`loadAuth`) | On builds with per-tab sessions the apps keep the whole session in the tab's sessionStorage; localStorage tokens are deprecated. The injectors write exactly the keys a real sign-in writes (listed in `session-storage.ts`), and remove any localStorage copy. |
+| `test` comes from `tests/utils/session-test.ts` | the import line of every spec | Playwright's storageState can't hold sessionStorage, so the setup projects also save it (`auth-session.json`, `auth-api-session.json`, git-ignored) and this `test` restores it into each tab, once. Same line count, so no test id moved. |
+| One admin credential family | `tests/utils/env.ts` and its readers | `DIGIT_USERNAME`, `DIGIT_PASSWORD` and `ROOT_TENANT` are canonical; `ADMIN_USER`, `ADMIN_PASSWORD` (`ADMIN_PASS`) and `TENANT_CODE` still work as deprecated aliases. |
+| Citizen OTP from an SMS sink or a fixed code | `tests/utils/otp.ts` and every OTP call site | `OTP_SINK_URL` set: the OTP is read from the sink. Unset: `FIXED_OTP`. No fallback from a configured sink. |
+| `tests/onboarding/` is opt-in | `playwright.config.ts` | It creates and deactivates throwaway child tenants. `RUN_ONBOARDING=1` turns it on. |
+| `tests/dashboard-performance/` is not in the main run | `playwright.config.ts` | Analytics-dashboard benchmarks with their own config (`playwright.dashboard.config.ts`). |
+| Geo spec imports the vendored product file | `tests/specs/pgr-geo-location-contract.spec.ts`, `vendor/` | The tag's import path points outside this repo, and one unresolved import aborts every run. |
+| Session and file-access checks, tagged `@2.12_session_checks` — **opt-in** | `tests/api/filestore-access-requires-token.spec.ts`; `tests/{employee,citizen,admin}/session-per-window.spec.ts`; `tests/{employee,citizen}/session-idle-timeout.spec.ts` and `login-branding-images-load-before-sign-in.spec.ts`; `tests/citizen/complaint-photo-and-receipt-load-signed-in.spec.ts`; `tests/employee/complaint-attachments-and-receipt-load.spec.ts`; `tests/admin/configurator-logo-and-xlsx-upload-load.spec.ts`; helpers `tests/utils/ui-sign-in.ts`, `session-checks.ts`, `complaint-files-ui.ts` | Never part of full or any other scope. Run them alone with the `session-checks` scope (`ci/run-local.sh <env> session-checks`, or the run form), which sets `RUN_SESSION_CHECKS=1` — the same mechanism as `@local-only` / `LOCAL_STACK`. On that run the lifecycle setup also files its non-terminal complaint with a photo (`lifecycle-fixtures.json` → `photo`). Users: `CITY_ADMIN_USER` (an employee with the CMS roles) for the workflow pages — inbox "Open in new tab" and complaint attachments — and 2 employees from `PERSONA_CANDIDATES` for the rest (see `environments/cms_pilot/secrets.example`); sign-in is a fresh API sign-in per test. Logout checks use the app's Logout control (it takes the tab to sign-in at once); where logout is only a step (FileStore's revoked token) the logout API is used. |
+
+**Manual case ids.** Each session or file-access check's title ends with its case id from the manual case sheet, as a tag: `… asks for login @SEC/013` (two ids where one test covers two cases). Group headings (`test.describe`) carry no SEC number, so an id never spreads to the tests under it. Test Run links results to manual cases with the Case-ID pattern `SEC/\d{3}`. Automated: 43 of 55 cases, including SEC/054 and SEC/055 (two different users in one browser time out independently). Cases with no automated test: SEC/012, SEC/026, SEC/038, SEC/045–SEC/053 (the configurator has no inactivity limit).
+
+Known on the tag itself: `npm run test:catalog-unit` has 12 failing run-accounting tests (the same on an untouched copy of `v2.12.1`), and `tsc` reports one type error in `tests/dashboard-performance/dashboard-harness.ts`.

@@ -120,6 +120,8 @@ export async function seedComplaintAsCitizen(opts?: {
   localityCode?: string;
   description?: string;
   geoLocation?: { latitude?: number; longitude?: number };
+  /** Files already in FileStore to attach to the complaint. */
+  documents?: Array<{ fileStoreId: string; documentType?: string }>;
 }): Promise<{ srid: string; status: string }> {
   // Resolved only when the caller left something to resolve — a spec that pins
   // both is asking for one specific complaint and should not be gated on the
@@ -139,6 +141,7 @@ export async function seedComplaintAsCitizen(opts?: {
     citizenName: who.name,
     citizenPhone: who.mobile,
     geoLocation: opts?.geoLocation,
+    documents: opts?.documents,
   });
   filedBy.set(result.serviceRequestId, who);
   return { srid: result.serviceRequestId, status: result.applicationStatus };
@@ -178,4 +181,21 @@ export async function driveToClosedRated(srid: string, rating: number): Promise<
       service.rating = rating;
     },
   );
+}
+
+/** The citizen identity seeded complaints are filed as (token, mobile, name). */
+export async function seedCitizen(): Promise<{ token: string; mobile: string; name: string; userInfo: Record<string, unknown> }> {
+  return citizen();
+}
+
+/** A complaint's full ServiceWrapper (service + workflow) as its filer sees it, or null. */
+export async function complaintAsFiler(srid: string): Promise<Record<string, unknown> | null> {
+  const who = filedBy.get(srid) ?? (await citizen());
+  const r = await fetch(`${BASE_URL}/pgr-services/v2/request/_search?tenantId=${encodeURIComponent(TENANT)}&serviceRequestId=${encodeURIComponent(srid)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${who.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ RequestInfo: { apiId: 'Rainmaker', authToken: who.token, userInfo: who.userInfo } }),
+  });
+  const j = (await r.json().catch(() => null)) as any;
+  return j?.ServiceWrappers?.[0] ?? null;
 }

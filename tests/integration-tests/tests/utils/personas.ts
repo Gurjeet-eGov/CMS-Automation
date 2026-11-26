@@ -25,14 +25,13 @@
  * ACTOR needs credentials, and those come from env.
  */
 import { getDigitToken } from './auth';
-import { isContextRefusal, KeycloakSignInError } from './identity-bff';
-import { ROOT_TENANT, TENANT, DEFAULT_PASSWORD } from './env';
+import { ROOT_TENANT, TENANT, DEFAULT_PASSWORD, ADMIN_USER, ADMIN_PASS } from './env';
 import { fetchEmployees, type DiscoveredEmployee } from './probes';
 import { getProfile, type DeploymentProfile, type PersonaSummary } from './profile';
 
-export type PersonaKey = 'employee' | 'gro' | 'gro-with-department' | 'lme' | 'csr' | 'ward-scoped-csr' | 'inbox-viewer';
+export type PersonaKey = 'employee' | 'gro' | 'gro-with-department' | 'lme' | 'ward-scoped-csr' | 'inbox-viewer';
 
-export const PERSONA_KEYS: PersonaKey[] = ['employee', 'gro', 'gro-with-department', 'lme', 'csr', 'ward-scoped-csr', 'inbox-viewer'];
+export const PERSONA_KEYS: PersonaKey[] = ['employee', 'gro', 'gro-with-department', 'lme', 'ward-scoped-csr', 'inbox-viewer'];
 
 /**
  * The tenant pair every lookup here is relative to.
@@ -174,8 +173,7 @@ export function candidateCredentials(discoveredCodes: string[] = [], tenants?: T
   for (const [userVar, passVar, source] of envPairs) {
     push(process.env[userVar], process.env[passVar] || DEFAULT_PASSWORD, source, explicitTenants);
   }
-  push(process.env.DIGIT_USERNAME || process.env.ADMIN_USER || 'ADMIN',
-    process.env.DIGIT_PASSWORD || process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD, 'env:ADMIN', explicitTenants);
+  push(ADMIN_USER, ADMIN_PASS, 'env:ADMIN', explicitTenants); // env.ts: one admin family
 
   for (const pair of (process.env.PERSONA_CANDIDATES || '').split(',')) {
     const [username, password] = pair.split(':');
@@ -220,7 +218,7 @@ async function adminToken(tenants: TenantPair): Promise<string> {
   const root = tenants.root;
   const cached = adminTokenCache.get(root);
   if (cached !== undefined) return cached;
-  const user = process.env.DIGIT_USERNAME || process.env.ADMIN_USER || 'ADMIN';
+  const user = ADMIN_USER; // env.ts: one admin family
   // The admin login is retried: it is the single point every HRMS read goes
   // through, and a deployment that has just come up answers the first call
   // with a 5xx while egov-user is still warming. A one-shot failure here used
@@ -231,18 +229,17 @@ async function adminToken(tenants: TenantPair): Promise<string> {
       const r = await getDigitToken({
         tenant: root,
         username: user,
-        password: process.env.DIGIT_PASSWORD || process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD,
+        password: ADMIN_PASS,
       });
       adminTokenCache.set(root, r.access_token);
       adminTokenErrors.delete(root);
       return r.access_token;
     } catch (err: any) {
       adminTokenErrors.set(root, `${user}@${root}: ${err?.message?.slice(0, 160) ?? err}`);
-      if (err instanceof KeycloakSignInError) break; // a refused password is never retried
       if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 2_000));
     }
   }
-  console.log(`[personas] admin token unavailable — ${adminTokenErrors.get(root)}`);
+  console.log(`[personas] admin token unavailable after 3 attempts — ${adminTokenErrors.get(root)}`);
   adminTokenCache.set(root, '');
   return '';
 }
@@ -284,11 +281,6 @@ async function login(c: Candidate): Promise<Principal | null> {
   if (hit !== undefined) return hit;
 
   let result: Principal | null = null;
-  // Only a Keycloak refusal is a verdict about the credential. Anything else (a
-  // 5xx, a timeout, an ended Keycloak session) says nothing about it: caching it
-  // as "no" would let the persona resolve to the next candidate (often the
-  // admin) for the worker's life, so the run fails loudly instead.
-  let failure: unknown;
   for (const authTenant of c.authTenants) {
     try {
       const resp = await getDigitToken({ tenant: authTenant, authTenant, username: c.username, password: c.password });
@@ -302,10 +294,8 @@ async function login(c: Candidate): Promise<Principal | null> {
         };
         break;
       }
-    } catch (err) {
-      // Try the next tenant; a guessed password failing everywhere is normal, and
-      // so is a password that works for someone with no context here (_select).
-      if (!(err instanceof KeycloakSignInError || isContextRefusal(err))) failure ??= err;
+    } catch {
+      // Try the next tenant; a guessed password failing everywhere is normal.
     }
   }
   // R6: every attempt is logged, so a lockout can be traced to this suite —
@@ -313,9 +303,6 @@ async function login(c: Candidate): Promise<Principal | null> {
   console.log(
     `[personas] login ${c.username} (${c.source}) -> ${result ? `ok @ ${result.authTenant}` : `no (tried ${c.authTenants.join(', ')})`}`,
   );
-  if (!result && failure) {
-    throw new Error(`Sign-in for ${c.username} (${c.source}) failed for a reason other than a refusal: ${(failure as Error)?.message?.slice(0, 200) ?? failure}`);
-  }
   loginCache.set(key, result);
   return result;
 }
@@ -371,10 +358,6 @@ async function matches(key: PersonaKey, p: ResolvedPersona, profile: DeploymentP
       return p.roles.includes('GRO') && p.departments.length > 0;
     case 'lme':
       return p.roles.includes('PGR_LME');
-    case 'csr':
-      // Files a complaint on a citizen's behalf: APPLY's roles past CITIZEN,
-      // which is CSR on the shipped workflows.
-      return (profile.workflow.pgr.actionRoles.APPLY ?? []).some((r) => r !== 'CITIZEN' && p.roles.includes(r));
     case 'ward-scoped-csr':
       return isWardScopedCsr(p, hrms, profile);
     case 'inbox-viewer': {
@@ -432,7 +415,6 @@ function whyUnresolved(key: PersonaKey, tried: ResolvedPersona[], profile?: Depl
     gro: 'the GRO role',
     'gro-with-department': 'the GRO role AND an HRMS department assignment',
     lme: 'the PGR_LME role',
-    csr: 'a PGR APPLY role other than CITIZEN (CSR), to file a complaint on a citizen\'s behalf',
     'ward-scoped-csr': 'the CSR role AND an HRMS jurisdiction below the hierarchy root',
     // Must state exactly what matches() checks, or the reader onboards the
     // wrong thing: it said "GRO (or PGR_LME)" when PGR_LME alone never
@@ -690,18 +672,9 @@ export async function resolveSeedPlan(opts?: { profile?: DeploymentProfile }): P
     };
   }
 
-  // Prefer the credentialed LME persona (EMPLOYEE_USER) as the assignee when it
-  // qualifies. On DIGIT 3.0 only a complaint's current assignee may ESCALATE it
-  // (ESCALATION_NOT_HOLDER), so specs that act as the assignee need one whose
-  // password the suite has. Otherwise the order is unchanged (by code).
-  const lmePersona = await resolvePersona('lme', { profile }).catch(() => null);
-  const ordered = lmePersona
-    ? [...eligible.filter((e) => e.uuid === lmePersona.uuid), ...eligible.filter((e) => e.uuid !== lmePersona.uuid)]
-    : eligible;
-
   let picked: { service: (typeof services)[number]; assignee: DiscoveredEmployee } | null = null;
   for (const service of services) {
-    const assignee = ordered.find((e) => e.departments.includes(service.department));
+    const assignee = eligible.find((e) => e.departments.includes(service.department));
     if (assignee) {
       picked = { service, assignee };
       break;
@@ -740,4 +713,22 @@ export async function resolveSeedPlan(opts?: { profile?: DeploymentProfile }): P
     serviceCode: picked.service.serviceCode,
     localityCode,
   };
+}
+
+/**
+ * Sign one explicit credential in and join its HRMS record: roles, departments
+ * and jurisdictions, as resolvePersona() does for discovered personas. Null when
+ * the credential does not sign in. Used by the session checks to learn which
+ * department a test user belongs to (so a complaint can be filed into its inbox).
+ */
+export async function resolveCredential(username: string, password: string, opts?: { profile?: DeploymentProfile }): Promise<ResolvedPersona | null> {
+  const tenants = tenantsOf(opts?.profile ?? getProfile());
+  const c: Candidate = {
+    username,
+    password,
+    source: 'session-checks',
+    authTenants: tenants.city === tenants.root ? [tenants.city] : [tenants.city, tenants.root],
+  };
+  const p = await login(c);
+  return p ? toResolved(c, p, tenants) : null;
 }

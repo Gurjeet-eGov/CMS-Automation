@@ -22,7 +22,6 @@ End-to-end and API-driven tests that exercise the **citizen** surface of the dig
 | `complaint-create-payload-contract.spec.ts` | API-only contract check for the `_create` payload shape (AddressOne/Two, Kenya 5-digit pincode) |
 | `complaint-attachment.spec.ts` | Attachment upload during filing + attachment `<img>` on detail page (CCRS #555) |
 | `track-my-complaint.spec.ts` | My Complaints list + detail page + plural `/complaints/:id` URL |
-| `complaint-filed-for-citizen-2640.spec.ts` | A complaint the `csr` persona files for a citizen's phone reaches that citizen's My Complaints, filed after their first OTP sign-in (#2640) or before it. Needs `personas.csr` |
 | `complaint-detail-page.spec.ts` | Detail page renders without error fallback |
 | `complaint-timeline-and-rating-display.spec.ts` | PGR `_search` returns `service.rating` + `workflow.action=RATE` for rated complaints; localization keys seeded |
 | `rate-resolved-complaint.spec.ts` | Citizen rates a resolved complaint (5 stars + feedback checkboxes) |
@@ -156,27 +155,18 @@ test('rate page renders 5 stars + 4 feedback checkboxes', {
 ### 6. Handle real deployment gaps honestly
 
 - If the test hits a known unresolved product bug (not something the test can work around), use `test.fixme(...)` — it counts as an expected failure, not a regression.
-- If a test genuinely cannot run against certain deployments, gate it on what the deployment has, never on a tenant literal. Use a capability from `tests/utils/capabilities.ts`, which reads the discovered profile and the environment's expectations file and skips (or fails, if the capability is declared required) with a reason naming the tenant:
-  ```ts
-  import { requires } from '../utils/capabilities';
-  test('citizen files a complaint …', { tag: [/* … */] }, async ({ page }) => {
-    requires(test, 'pgr.citizenCreate', 'citizen filing wizard');
-    // …
-  });
-  ```
-  For a check no capability covers, read it from the profile or `utils/env.ts` and put the tenant and the evidence in the reason: ``test.skip(!found, `no <thing> on ${TENANT}: <what was searched>`)``.
-- If a product change retires the test on some deployments, follow `WRITING-TESTS.md` §9 (always skip, `Deprecated in <version>: …`, tag `@deprecated:<label>`).
+- If a test genuinely cannot run against certain deployments (e.g. requires the new CRS backend), use `test.skip(ROOT_TENANT === 'ke', 'ke PGR submit returns JsonMappingException — deployment bug')`.
 - Do NOT relax an assertion to hide a real deployment gap. Skip with a clear reason instead.
 
 ### 7. Verify against at least one deployment before committing
 
-Run it against one of the environments under `environments/` (from the repo root):
-
 ```bash
-ci/run-local.sh <env> citizen -- tests/citizen/<your-new-spec>.spec.ts
+cd tests/integration-tests
+env BASE_URL=https://subhadev.digitlab.in DIGIT_TENANT=ethiopia ROOT_TENANT=ethiopia ADMIN_USER=ADMIN ADMIN_PASS=eGov@123 TENANT_CODE=ethiopia \
+  npx playwright test --no-deps --project=chromium tests/citizen/<your-new-spec>.spec.ts --reporter=list
 ```
 
-If you're aiming for deployment portability, also run it against a second environment under `environments/`.
+If you're aiming for deployment portability, also verify against Bomet (`bometfeedbackhub.digit.org / ke`).
 
 ### 8. Commit convention
 
@@ -192,6 +182,7 @@ feat(tests): add complaint reopen validation against reason mandatory field (CCR
 - `tests/admin/` — Configurator admin-side UI
 - `tests/employee/` — Employee/GRO/LME UI flows
 - `tests/lifecycle/` — Non-citizen-anchored cross-persona flows (e.g. SLA auto-escalation)
+- `tests/onboarding/` — Tenant setup wizard
 - `tests/keycloak/` — Keycloak realm / IdP config
 - `tests/smoke/` — `@kind:smoke`-tagged fast health checks
 - `tests/utils/` — Shared helpers, env, MDMS lookups, provisioning

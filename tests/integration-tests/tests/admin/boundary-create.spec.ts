@@ -3,7 +3,7 @@
  * hierarchy relationship from the authenticated tenant instead of posting a
  * hard-coded ADMIN relationship without a parent.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../utils/session-test';
 import { buildRequestInfo, loadAuth, type AuthInfo } from '../utils/manage/api';
 import { testCode } from '../utils/manage/codes';
 

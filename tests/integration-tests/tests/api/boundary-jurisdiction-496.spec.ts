@@ -26,7 +26,7 @@
  * assertion is only ever vacuous when there is nothing to derive it from
  * — and `requires()` fails/skips before that can happen silently.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { BASE_URL, ROOT_TENANT, TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
 import { getDigitToken } from '../utils/auth';
 import { getPersona } from '../utils/personas';

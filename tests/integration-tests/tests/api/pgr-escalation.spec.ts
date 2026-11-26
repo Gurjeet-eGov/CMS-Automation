@@ -29,10 +29,10 @@
  *
  * Run: npx playwright test tests/api/pgr-escalation.spec.ts
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { getDigitToken } from '../utils/auth';
 import { BASE_URL, TENANT, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from '../utils/env';
-import { candidateCredentials, resolvePersona, resolveSeedPlan } from '../utils/personas';
+import { resolveSeedPlan } from '../utils/personas';
 import { getProfile } from '../utils/profile';
 import { seedComplaintAsCitizen } from '../utils/seed';
 
@@ -138,18 +138,6 @@ test.describe.serial('PGR escalation — API only', () => {
   let supervisorUuid: string;
   let secondSupervisorUuid: string | null = null;
   let allEmployees: any[] = [];
-  // DIGIT 3.0 lets only a complaint's current assignee act on it, so steps that
-  // act as a supervisor need its login. Filled by test 3 from the logins the
-  // suite knows (env users + PERSONA_CANDIDATES), keyed by user uuid.
-  const knownLogins = new Map<string, { username: string; password: string; tenant: string }>();
-  let currentHolderUuid = '';
-  /** A token for this employee when its login is known, else null. */
-  async function actAs(uuid: string): Promise<{ token: string; userInfo: Record<string, unknown> } | null> {
-    const login = knownLogins.get(uuid);
-    if (!login) return null;
-    const auth = await getDigitToken({ tenant: login.tenant, username: login.username, password: login.password });
-    return { token: auth.access_token, userInfo: auth.UserRequest as Record<string, unknown> };
-  }
   /** Set to true when prerequisites (workflow + hierarchy) are confirmed. */
   let prerequisitesMet = false;
   /** ESCALATE is a self-loop, so the only valid landing state is PENDINGATLME. */
@@ -190,12 +178,7 @@ Steps:
 4. Assert PENDINGATSUPERVISOR and RESOLVEDBYSUPERVISOR are absent.
 5. Fail on drift. Workflow migration is a deployment operation and this test never mutates live configuration.`,
     },
-    tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross', '@deprecated:digit-3.0'] }, async () => {
-    test.skip(
-      true,
-      'Deprecated in DIGIT 3.0: requires an ESCALATE self-loop at PENDINGFORASSIGNMENT, but the DIGIT 3.0 PGR workflow ' +
-        'escalates only from PENDINGATLME. Covered by "14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only".',
-    );
+    tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross'] }, async () => {
 
     const biz = await fetchPgrWorkflow(adminToken);
     expect(biz).toBeTruthy();
@@ -291,50 +274,18 @@ If this fails due to insufficient same-department employees, downstream escalati
       return;
     }
     const others = pool.filter((e: any) => e.uuid !== plan.assigneeUuid);
-
-    // DIGIT 3.0 escalates only to a supervisor who can act on the complaint at
-    // PENDINGATLME (ESCALATION_NO_ACTIONABLE_SUPERVISOR otherwise): keep the
-    // employees holding a role on PENDINGATLME's actions (CITIZEN and SYSTEM
-    // aside; PGR_LME / PGR_VIEWER on the shipped workflow).
-    const biz = await fetchPgrWorkflow(adminToken);
-    const atLme = (biz?.states || []).find((s: any) => s.applicationStatus === 'PENDINGATLME');
-    const actingRoles = new Set<string>(
-      (atLme?.actions || []).flatMap((a: any) => a.roles || []).filter((r: string) => r !== 'CITIZEN' && r !== 'SYSTEM'),
-    );
-    const rolesOf = (e: any): string[] => (e.user?.roles || []).map((r: any) => r.code);
-
-    // Logins the suite knows (env users + PERSONA_CANDIDATES; passwords are
-    // never guessed), each signed in once to learn its uuid. Supervisors the
-    // suite can act as come first: tests 8 and 9 act as the current holder.
-    knownLogins.clear();
-    for (const c of candidateCredentials()) {
-      const tenant = c.authTenants[0] ?? ROOT_TENANT;
-      const auth = await getDigitToken({ tenant, username: c.username, password: c.password }).catch(() => null);
-      const uuid = (auth?.UserRequest as { uuid?: string } | undefined)?.uuid;
-      if (uuid && !knownLogins.has(uuid)) knownLogins.set(uuid, { username: c.username, password: c.password, tenant });
-    }
-    const actors = others
-      .filter((e: any) => rolesOf(e).some((r) => actingRoles.has(r)))
-      .sort((a: any, b: any) => Number(knownLogins.has(b.uuid)) - Number(knownLogins.has(a.uuid)));
-
-    if (actors.length < 2) {
-      const seen = others.map((e: any) => `${e.user?.name ?? e.code}[${rolesOf(e).join('|') || 'no roles'}]`).join(', ') || 'none';
+    if (others.length < 2) {
       test.skip(
         true,
-        `Need 2 more employees in department '${department}' (SERVICE_CODE=${plan.serviceCode}'s department) besides the ` +
-          `assignee ${plan.assigneeCode} who hold a role that can act at PENDINGATLME (${[...actingRoles].join(', ') || 'none found'}) — ` +
-          `DIGIT 3.0 escalates only to such a supervisor. Found ${actors.length}. Same-department employees: ${seen}. ` +
-          'Give two of them one of those roles, ideally ones whose logins are in PERSONA_CANDIDATES.',
+        `Need ≥2 more employees in department '${department}' (SERVICE_CODE=${plan.serviceCode}'s department) besides ` +
+          `the seed-plan assignee ${plan.assigneeCode} to build a 2-level reportingTo hierarchy where every ` +
+          `ASSIGN/ESCALATE hop passes PGR's department check — found ${others.length} (${deptCandidates.length} total in department)`,
       );
       return;
     }
 
-    const supervisor = actors[0];
-    const superSupervisor = actors[1];
-    console.log(
-      `Supervisors: ${supervisor.user?.name} (${knownLogins.has(supervisor.uuid) ? 'known login' : 'no login'}), ` +
-        `${superSupervisor.user?.name} (${knownLogins.has(superSupervisor.uuid) ? 'known login' : 'no login'})`,
-    );
+    const supervisor = others[0];
+    const superSupervisor = others[1];
 
     // Helper to set reportingTo on an employee's current assignment (idempotent)
     async function ensureReportingTo(emp: any, reportingToUuid: string): Promise<boolean> {
@@ -444,9 +395,8 @@ Sets up the situation needed for the level 0→1 escalation in step 6.`,
 
 Steps:
 1. test.skip if !prerequisitesMet.
-2. Sign in as the complaint's current assignee: DIGIT 3.0 lets only the current assignee escalate (ESCALATION_NOT_HOLDER otherwise). The seed plan makes the credentialed LME persona the assignee; skip with the reason if it isn't.
-3. fetchComplaint() to get the full service object.
-4. POST _update as the assignee with workflow { action: 'ESCALATE', comments }; the server resolves reportingTo.
+2. fetchComplaint() to get the full service object.
+3. POST _update with workflow { action: 'ESCALATE', comments }; the server resolves reportingTo.
 4. Assert applicationStatus stays at PENDINGATLME (it's a self-loop).
 5. Assert the server wrote level, assignee, trigger, and assignment-clock metadata.
 
@@ -454,26 +404,13 @@ Catches Jackson silently-dropped-key bugs and confirms the self-loop preserves s
     },
     tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross'] }, async () => {
     test.skip(!prerequisitesMet, 'Prerequisites not met');
-
-    // DIGIT 3.0: only the complaint's current assignee may ESCALATE it. The
-    // seed plan prefers the credentialed LME persona as that assignee.
-    const holder = await resolvePersona('lme');
-    test.skip(
-      !holder || holder.uuid !== employeeUuid,
-      'DIGIT 3.0 lets only the current assignee escalate, and the assignee is not a persona the suite can sign in as ' +
-        '(set EMPLOYEE_USER to an LME in the complaint type\'s department)',
-    );
-    const holderAuth = await getDigitToken({ tenant: ROOT_TENANT, username: holder!.username, password: holder!.password });
-    const holderToken = holderAuth.access_token;
-    const holderUserInfo = holderAuth.UserRequest as Record<string, unknown>;
-
-    const fullService = await fetchComplaint(holderToken, holderUserInfo, serviceRequestId);
+    const fullService = await fetchComplaint(adminToken, adminUserInfo, serviceRequestId);
 
     const resp = await fetch(`${BASE_URL}/pgr-services/v2/request/_update?tenantId=${TENANT}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${holderToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        RequestInfo: { apiId: 'Rainmaker', authToken: holderToken, userInfo: holderUserInfo },
+        RequestInfo: { apiId: 'Rainmaker', authToken: adminToken, userInfo: adminUserInfo },
         service: fullService,
         workflow: {
           action: 'ESCALATE',
@@ -490,7 +427,6 @@ Catches Jackson silently-dropped-key bugs and confirms the self-loop preserves s
     expect(updatedDetail.escalatedTo).toBe(supervisorUuid);
     expect(updatedDetail.escalationTrigger).toBe('MANUAL');
     expect(updatedDetail.assignmentChangedAt).toBe(updatedDetail.lastEscalatedAt);
-    currentHolderUuid = supervisorUuid;
     console.log(`${serviceRequestId} → ESCALATED to ${supervisorUuid} (level 1)`);
   });
 
@@ -558,8 +494,7 @@ Steps:
 1. test.skip if !prerequisitesMet.
 2. Look up the supervisor in allEmployees; read their current assignment's reportingTo into secondSupervisorUuid.
 3. test.skip if reportingTo is null or the UUID is not in the employee list.
-4. Sign in as the supervisor, the complaint's current holder: DIGIT 3.0 lets only the current assignee escalate. test.skip with the reason if its login is not known (add it to PERSONA_CANDIDATES).
-5. POST _update as the supervisor with workflow { action: 'ESCALATE', comments }; the server resolves the second hop.
+4. POST _update with workflow { action: 'ESCALATE', comments }; the server resolves the second hop.
 5. Assert the state is unchanged and server-managed escalationLevel is 2.
 
 The skip cases are first-class outcomes — the suite is designed to pass on a 2-level OR 3+ level hierarchy.`,
@@ -585,20 +520,12 @@ The skip cases are first-class outcomes — the suite is designed to pass on a 2
       return;
     }
 
-    // DIGIT 3.0: only the current assignee (the supervisor, after level 1) may escalate.
-    const holder = await actAs(supervisorUuid);
-    test.skip(
-      !holder,
-      `DIGIT 3.0 lets only the current assignee escalate, and the supervisor (${supervisorEmp?.user?.name ?? supervisorUuid}) ` +
-        'is not a login the suite knows: add its email:password to PERSONA_CANDIDATES',
-    );
-
-    const fullService = await fetchComplaint(holder!.token, holder!.userInfo, serviceRequestId);
+    const fullService = await fetchComplaint(adminToken, adminUserInfo, serviceRequestId);
     const resp = await fetch(`${BASE_URL}/pgr-services/v2/request/_update?tenantId=${TENANT}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${holder!.token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        RequestInfo: { apiId: 'Rainmaker', authToken: holder!.token, userInfo: holder!.userInfo },
+        RequestInfo: { apiId: 'Rainmaker', authToken: adminToken, userInfo: adminUserInfo },
         service: fullService,
         workflow: {
           action: 'ESCALATE',
@@ -608,7 +535,6 @@ The skip cases are first-class outcomes — the suite is designed to pass on a 2
     });
 
     const data = await assertOk(resp, 'PGR ESCALATE (level 1→2)');
-    currentHolderUuid = secondSupervisorUuid ?? currentHolderUuid;
     // Every hop is the same PENDINGATLME self-loop.
     expect(data.ServiceWrappers[0].service.applicationStatus).toBe(escalateNextStateFromLme);
     // Verify escalation metadata persisted through _update (singular field)
@@ -624,20 +550,16 @@ The skip cases are first-class outcomes — the suite is designed to pass on a 2
 
 Steps:
 1. test.skip if !prerequisitesMet.
-2. Act as the complaint's current holder (the super-supervisor if test 8 escalated, else the supervisor) when its login is known — DIGIT 3.0 limits workflow actions to the current assignee — otherwise as the admin.
-3. fetchComplaint() to get the full service object.
-4. POST _update with workflow { action: 'RESOLVE', comments }.
-5. Assert applicationStatus === 'RESOLVED'.
+2. fetchComplaint() to get the full service object.
+3. POST _update with workflow { action: 'RESOLVE', comments }.
+4. Assert applicationStatus === 'RESOLVED'.
 5. Assert additionalDetail.escalationLevel >= 1 (the escalation history is preserved).
 
 Catches a regression where a transition implementation overwrites or strips additionalDetail and loses the escalation audit trail.`,
     },
     tag: ['@area:pgr', '@kind:lifecycle', '@layer:api', '@persona:cross'] }, async () => {
     test.skip(!prerequisitesMet, 'Prerequisites not met');
-    // DIGIT 3.0 limits workflow actions to the current assignee: act as the
-    // holder when its login is known, otherwise as the admin (as before).
-    const holder = (currentHolderUuid ? await actAs(currentHolderUuid) : null) ?? { token: adminToken, userInfo: adminUserInfo };
-    const fullService = await fetchComplaint(holder.token, holder.userInfo, serviceRequestId);
+    const fullService = await fetchComplaint(adminToken, adminUserInfo, serviceRequestId);
 
     const currentState = fullService.applicationStatus as string;
     const closeAction = 'RESOLVE';
@@ -645,9 +567,9 @@ Catches a regression where a transition implementation overwrites or strips addi
 
     const resp = await fetch(`${BASE_URL}/pgr-services/v2/request/_update?tenantId=${TENANT}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${holder.token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        RequestInfo: { apiId: 'Rainmaker', authToken: holder.token, userInfo: holder.userInfo },
+        RequestInfo: { apiId: 'Rainmaker', authToken: adminToken, userInfo: adminUserInfo },
         service: fullService,
         workflow: { action: closeAction, comments: 'Resolved after escalation — E2E test' },
       }),
@@ -886,12 +808,7 @@ Deliberately LAST in this serial block, and deliberately separate from test 2. T
 
 This is the final guard against workflow/source drift.`,
     },
-    tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:cross', '@deprecated:digit-3.0'] }, async () => {
-    test.skip(
-      true,
-      'Deprecated in DIGIT 3.0: requires an ESCALATE self-loop at PENDINGFORASSIGNMENT, but the DIGIT 3.0 PGR workflow ' +
-        'escalates only from PENDINGATLME. Covered by "14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only".',
-    );
+    tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:cross'] }, async () => {
     const biz = await fetchPgrWorkflow(adminToken);
 
     const stateUuids = new Set(biz.states.map((s: any) => s.uuid));
@@ -920,59 +837,5 @@ This is the final guard against workflow/source drift.`,
     expect(biz.states.some((s: any) => s.applicationStatus === 'RESOLVEDBYSUPERVISOR')).toBe(false);
     expect((atLme.actions || []).some((a: any) => a.action === 'FORWARD')).toBe(false);
     expect((forAssignment.actions || []).some((a: any) => a.action === 'ASSIGNEDBYAUTOESCALATION')).toBe(false);
-  });
-
-  test('14b — DIGIT 3.0 workflow: ESCALATE is a SYSTEM self-loop at PENDINGATLME only', {
-    annotation: {
-      type: 'description',
-      description: `Audits the deployed PGR businessService against the DIGIT 3.0 escalation contract, where escalation happens only while a complaint is with the LME. Replaces tests 2 and 14, which also required an ESCALATE self-loop at PENDINGFORASSIGNMENT.
-
-Steps:
-1. Fetch the PGR businessService.
-2. Every action's nextState resolves to a state that exists.
-3. PENDINGATLME has an active ESCALATE whose nextState is PENDINGATLME itself, with SYSTEM among its roles (the scheduler escalates as SYSTEM).
-4. PENDINGFORASSIGNMENT has no ESCALATE: an unassigned complaint has no assignee whose supervisor could take it.
-5. No FORWARD at PENDINGATLME, no ASSIGNEDBYAUTOESCALATION at PENDINGFORASSIGNMENT, and no PENDINGATSUPERVISOR / RESOLVEDBYSUPERVISOR states.
-
-Deliberately LAST in this serial block, as test 14 was: an audit of the deployment's configuration, not a precondition for the escalation chain. Read-only; never mutates live configuration.`,
-    },
-    tag: ['@area:pgr', '@kind:regression', '@layer:api', '@persona:cross'] }, async () => {
-    const biz = await fetchPgrWorkflow(adminToken);
-    expect(biz, 'the PGR businessService must be readable').toBeTruthy();
-
-    const stateUuids = new Set(biz.states.map((s: any) => s.uuid));
-    const dangling: string[] = [];
-    for (const st of biz.states) {
-      for (const act of st.actions || []) {
-        if (act.nextState && !stateUuids.has(act.nextState)) {
-          dangling.push(`${st.applicationStatus} --${act.action}--> ${act.nextState}`);
-        }
-      }
-    }
-    expect(
-      dangling,
-      `PGR workflow has transitions pointing at non-existent states:\n  ${dangling.join('\n  ')}`,
-    ).toEqual([]);
-
-    const atLme = biz.states.find((s: any) => s.applicationStatus === 'PENDINGATLME');
-    const forAssignment = biz.states.find((s: any) => s.applicationStatus === 'PENDINGFORASSIGNMENT');
-    expect(atLme, 'PENDINGATLME state must exist').toBeTruthy();
-    expect(forAssignment, 'PENDINGFORASSIGNMENT state must exist').toBeTruthy();
-
-    const escAtLme = (atLme.actions || []).find((a: any) => a.action === 'ESCALATE');
-    expect(escAtLme, 'PENDINGATLME must offer ESCALATE').toBeTruthy();
-    expect(escAtLme.active, 'ESCALATE at PENDINGATLME must be active').not.toBe(false);
-    expect(escAtLme.nextState, 'ESCALATE at PENDINGATLME must loop back to PENDINGATLME').toBe(atLme.uuid);
-    expect(escAtLme.roles, 'the scheduler escalates as SYSTEM').toContain('SYSTEM');
-
-    expect(
-      (forAssignment.actions || []).some((a: any) => a.action === 'ESCALATE'),
-      'DIGIT 3.0 escalates only from PENDINGATLME: PENDINGFORASSIGNMENT must not offer ESCALATE',
-    ).toBe(false);
-
-    expect((atLme.actions || []).some((a: any) => a.action === 'FORWARD')).toBe(false);
-    expect((forAssignment.actions || []).some((a: any) => a.action === 'ASSIGNEDBYAUTOESCALATION')).toBe(false);
-    expect(biz.states.some((s: any) => s.applicationStatus === 'PENDINGATSUPERVISOR')).toBe(false);
-    expect(biz.states.some((s: any) => s.applicationStatus === 'RESOLVEDBYSUPERVISOR')).toBe(false);
   });
 });

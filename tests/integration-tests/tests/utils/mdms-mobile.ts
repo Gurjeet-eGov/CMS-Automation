@@ -15,7 +15,7 @@
  * UI.
  */
 import { getDigitToken } from './auth';
-import { BASE_URL, ROOT_TENANT } from './env';
+import { BASE_URL, ROOT_TENANT, ADMIN_USER, ADMIN_PASS } from './env';
 
 export interface MobileRule {
   prefix?: string;
@@ -33,8 +33,7 @@ const FALLBACK: MobileRule = {
   errorMessage: 'Please enter a valid 10-digit mobile number',
 };
 
-const ADMIN_USER = process.env.ADMIN_USER || 'ADMIN';
-const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'eGov@123';
+// Admin credentials: env.ts's ADMIN_USER / ADMIN_PASS (one family), read at the use site.
 
 /**
  * Root tenant, read at the USE SITE rather than module scope.

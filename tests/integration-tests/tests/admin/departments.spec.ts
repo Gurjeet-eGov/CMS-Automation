@@ -6,7 +6,7 @@
  * PW_${hash}_${kind} prefix from helpers/codes so parallel runs and
  * historical leftovers never collide.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import ExcelJS from 'exceljs';
 import {
   employeeSearch,
@@ -127,7 +127,7 @@ Prior version was vacuous: expect(filteredCount).toBeLessThanOrEqual(initialCoun
     const initialCount = await dataRows.count();
     expect(initialCount, 'list should render at least one department').toBeGreaterThan(0);
 
-    const search = page.locator('#main-content').getByPlaceholder(/search/i).first();
+    const search = page.getByPlaceholder(/search/i).first();
     await expect(search).toBeVisible();
 
     // --- Search that matches nothing must empty the table ---
@@ -236,7 +236,7 @@ Guard banner check is loose because exact wording depends on dependency type and
     ]);
 
     // --- Verify in list, then open Show ---
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(code);
+    await page.getByPlaceholder(/search/i).first().fill(code);
     await page.waitForLoadState('networkidle').catch(() => {});
     const row = page.getByRole('row').filter({ hasText: code });
     await expect(row).toBeVisible();
@@ -258,7 +258,7 @@ Guard banner check is loose because exact wording depends on dependency type and
     // After Save the edit form returns to the LIST (DigitEdit redirect default),
     // so reopen the record's Show page before the deactivate edit — otherwise the
     // top-level "Edit" button doesn't exist on the list and the click hangs.
-    await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(code);
+    await page.getByPlaceholder(/search/i).first().fill(code);
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.getByRole('row').filter({ hasText: code }).first().click();
 
@@ -283,7 +283,7 @@ Guard banner check is loose because exact wording depends on dependency type and
       await statusFilter.click();
       await page.getByRole('option', { name: /Inactive/i }).click();
       await page.waitForLoadState('networkidle').catch(() => {});
-      await page.locator('#main-content').getByPlaceholder(/search/i).first().fill(code);
+      await page.getByPlaceholder(/search/i).first().fill(code);
       await page.waitForLoadState('networkidle').catch(() => {});
       await expect(page.getByRole('row').filter({ hasText: code })).toBeVisible();
     }

@@ -10,7 +10,7 @@
  *     'required' on both deployments precisely so its absence is a failure and
  *     not a shrug. Soft assertions so one gap does not mask the others.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { currentTarget, getProfile, probeFailuresOf, profileTargetMismatches, PROFILE_PATH } from '../utils/profile';
 import { auditExpectations, loadExpectations } from '../utils/capabilities';
 

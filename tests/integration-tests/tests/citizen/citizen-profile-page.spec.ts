@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Citizen profile field-set lock-down — Story 8.1.
  *
@@ -12,7 +11,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * update both this spec and `docs/personas/citizen-flows.md` Story 8.1
  * in the same PR — the doc is the source of truth.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { citizenOtpLogin } from '../utils/citizen-login';
 import { BASE_URL } from '../utils/env';
 import { readProvisionedCitizen } from '../utils/citizen-provision';
@@ -77,7 +76,7 @@ If a future build legitimately adds a field, update this spec AND citizen-flows.
     }
     await citizenOtpLogin(page, provisioned.mobile);
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/user/profile`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/user/profile`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

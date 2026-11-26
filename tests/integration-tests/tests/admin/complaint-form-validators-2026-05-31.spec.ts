@@ -19,7 +19,7 @@
  * "Select complaint type" combobox and directly-clicked "Boundary"
  * combobox no longer exist.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 import { BASE_URL, TENANT, POSTAL_CODE_PATTERN, POSTAL_CODE_VALID } from '../utils/env';
 import { getMobileValidationRule, generateValidMobile } from '../utils/mdms-mobile';
 

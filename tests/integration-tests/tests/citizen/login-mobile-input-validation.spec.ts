@@ -1,4 +1,3 @@
-import { tenantSlug } from '../utils/identity-bff';
 /**
  * Citizen login mobile-number validation (CCRS #429).
  *
@@ -19,7 +18,7 @@ import { tenantSlug } from '../utils/identity-bff';
  * plus the persistent helper hint — without coupling to the exact
  * translation (which lives in MDMS and may move).
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils/session-test';
 
 import { BASE_URL, TENANT } from '../utils/env';
 import { getMobileValidationRule, generateInvalidMobile } from '../utils/mdms-mobile';
@@ -72,7 +71,7 @@ Catches a regression where the citizen login regresses to the hardcoded Indian v
       'short',
     );
 
-    await page.goto(`${BASE_URL}/${tenantSlug()}/digit-ui/citizen/login`, {
+    await page.goto(`${BASE_URL}/digit-ui/citizen/login`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });

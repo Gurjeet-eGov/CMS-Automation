@@ -2,10 +2,19 @@ import { defineConfig } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'https://naipepea.digit.org';
 const LOCAL_STACK = process.env.LOCAL_STACK === '1';
-// Node's fetch (passwordSignIn, citizen provisioning) honours the same
-// self-signed opt-in as the browser contexts' ignoreHTTPSErrors below.
-if (process.env.IGNORE_HTTPS_ERRORS === '1') process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const EXCLUDE_LOCAL_ONLY = LOCAL_STACK ? undefined : /@local-only/;
+// tests/onboarding/ walks the configurator onboarding wizard: it creates and
+// deactivates throwaway child tenants on the target and adds ~20 serial tests to
+// a full run. Opt in per environment with RUN_ONBOARDING=1 in its config.env.
+const RUN_ONBOARDING = process.env.RUN_ONBOARDING === '1';
+// Session and file-access checks (tag @2.12_session_checks) run only on their
+// own: never in full or any other scope. RUN_SESSION_CHECKS=1 (set by the
+// `session-checks` scope in ci/run-suite.sh) runs ONLY them, with the setup
+// projects as their dependencies. Same mechanism as @local-only / LOCAL_STACK.
+const RUN_SESSION_CHECKS = process.env.RUN_SESSION_CHECKS === '1';
+const SESSION_CHECKS_TAG = /@2\.12_session_checks/;
+const ONLY_SESSION_CHECKS = RUN_SESSION_CHECKS ? SESSION_CHECKS_TAG : undefined;
+const EXCLUDED = [EXCLUDE_LOCAL_ONLY, RUN_SESSION_CHECKS ? undefined : SESSION_CHECKS_TAG].filter((r): r is RegExp => !!r);
 
 export default defineConfig({
   // Specs live under tests/<persona>/ (citizen, employee, admin) plus
@@ -25,7 +34,6 @@ export default defineConfig({
     'fixtures/citizen.setup.ts',
     'fixtures/profile.setup.ts',
   ],
-  testIgnore: /tests\/identity-real\//,
   timeout: 120_000,
   expect: { timeout: 15_000 },
   retries: 0,
@@ -56,9 +64,10 @@ export default defineConfig({
       testMatch: /tests\/fixtures\/profile\.setup\.ts$/,
     },
     {
-      // Admin configurator session -> auth.json: walks the login form on form builds,
-      // seeds the session from an API token on hosted sign-in builds (#2107). Reads
-      // tenant + credentials through env.ts, so it needs the discovered profile.
+      // Runs first — performs UI login and writes storageState to auth.json,
+      // plus the sessionStorage half of the session to auth-session.json
+      // (storageState cannot hold sessionStorage). Reads tenant + credentials
+      // through env.ts, so it needs the discovered profile.
       name: 'setup',
       testMatch: /tests\/fixtures\/auth\.setup\.ts$/,
       dependencies: ['profile-setup'],
@@ -89,11 +98,15 @@ export default defineConfig({
         // spec ran a second time under chromium with the UI storage state,
         // duplicating every api result in report.json (38 pass/fail/skip rows
         // counted twice) and inflating suite runtime for zero added coverage.
-        /tests\/(api|smoke|identity-real)\//,
-        // Dashboard benchmarks have their own config (playwright.dashboard.config.ts).
+        /tests\/(api|smoke)\//,
+        // Analytics-dashboard benchmarks have their own config
+        // (playwright.dashboard.config.ts) and fail without its DASHBOARD_* settings.
         /tests\/dashboard-performance\//,
+        // Opt-in only: see RUN_ONBOARDING above.
+        ...(RUN_ONBOARDING ? [] : [/tests\/onboarding\//]),
       ],
-      grepInvert: EXCLUDE_LOCAL_ONLY,
+      grep: ONLY_SESSION_CHECKS,
+      grepInvert: EXCLUDED,
     },
     {
       // Token-injection auth — writes auth-api.json storage state.
@@ -108,7 +121,7 @@ export default defineConfig({
       // On maputo that surfaces as `ROPC token request failed (400)`; on bomet
       // it would pass for the worst possible reason — the fallback literal `ke`
       // happens to BE bomet's real tenant, so the bug is invisible there.
-      // `setup` has the same edge for the same reason.
+      // `setup` needs no such edge: it does not import env.ts.
       name: 'api-setup',
       testMatch: /tests\/fixtures\/api\.setup\.ts$/,
       dependencies: ['profile-setup'],
@@ -127,7 +140,8 @@ export default defineConfig({
       testDir: 'tests/smoke',
       testMatch: /.*\.spec\.ts$/,
       dependencies: ['api-setup', 'profile-setup'],
-      grepInvert: EXCLUDE_LOCAL_ONLY,
+      grep: ONLY_SESSION_CHECKS,
+      grepInvert: EXCLUDED,
       timeout: 30_000,
       use: {
         storageState: 'auth-api.json',
@@ -142,7 +156,8 @@ export default defineConfig({
       // no fixture file and that spec self-skips — which read as a data gap but was
       // purely a missing dependency here.
       dependencies: ['api-setup', 'profile-setup', 'lifecycle-setup'],
-      grepInvert: EXCLUDE_LOCAL_ONLY,
+      grep: ONLY_SESSION_CHECKS,
+      grepInvert: EXCLUDED,
       use: {
         storageState: 'auth-api.json',
       },
